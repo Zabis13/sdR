@@ -1,0 +1,41 @@
+#!/bin/sh
+# Auto-detect Vulkan support for sdR
+
+VULKAN_CPPFLAGS=""
+VULKAN_LIBS=""
+
+# Find Rscript
+: ${R_HOME=$(R RHOME 2>/dev/null)}
+if [ -n "$R_HOME" ]; then
+  RSCRIPT="${R_HOME}/bin/Rscript"
+else
+  RSCRIPT="Rscript"
+fi
+
+# Check if ggmlR was built with Vulkan support
+# ggml_vulkan_status() prints "Vulkan: AVAILABLE" when Vulkan is available
+GGMLR_HAS_VULKAN=$($RSCRIPT -e 'out <- capture.output(ggmlR::ggml_vulkan_status()); if (any(grepl("AVAILABLE", out))) cat("yes") else cat("no")' 2>/dev/null)
+
+if [ "$GGMLR_HAS_VULKAN" = "yes" ]; then
+  # Verify vulkan library is linkable
+  if pkg-config --exists vulkan 2>/dev/null; then
+    VULKAN_CPPFLAGS="-DSD_USE_VULKAN $(pkg-config --cflags vulkan)"
+    VULKAN_LIBS="$(pkg-config --libs vulkan)"
+    echo "* Vulkan: enabled (detected via ggmlR and pkg-config)"
+  elif [ -f /usr/lib/libvulkan.so ] || [ -f /usr/lib/x86_64-linux-gnu/libvulkan.so ]; then
+    VULKAN_CPPFLAGS="-DSD_USE_VULKAN"
+    VULKAN_LIBS="-lvulkan"
+    echo "* Vulkan: enabled (detected via ggmlR, system libvulkan)"
+  else
+    echo "* Vulkan: disabled (ggmlR has Vulkan but libvulkan not found for linking)"
+  fi
+else
+  echo "* Vulkan: disabled (ggmlR Vulkan not available)"
+fi
+
+# Generate src/Makevars from src/Makevars.in
+sed -e "s|@VULKAN_CPPFLAGS@|${VULKAN_CPPFLAGS}|g" \
+    -e "s|@VULKAN_LIBS@|${VULKAN_LIBS}|g" \
+    src/Makevars.in > src/Makevars
+
+echo "* Wrote src/Makevars"
