@@ -15,7 +15,10 @@
 #' @param n_threads Number of CPU threads (0 = auto-detect)
 #' @param wtype Weight type for quantization (see \code{SD_TYPE})
 #' @param vae_decode_only If TRUE, only load VAE decoder (saves memory)
-#' @param free_params_immediately Free model params after loading into backend
+#' @param free_params_immediately Free model params after first computation.
+#'   If TRUE, the context can only be used for a single generation — subsequent
+#'   calls will crash. Set to TRUE only when you need to save memory and will
+#'   not reuse the context. Default is FALSE.
 #' @param keep_clip_on_cpu Keep CLIP model on CPU even when using GPU
 #' @param keep_vae_on_cpu Keep VAE on CPU even when using GPU
 #' @param diffusion_flash_attn Enable flash attention for diffusion model
@@ -42,7 +45,7 @@ sd_ctx <- function(model_path,
                    n_threads = 0L,
                    wtype = SD_TYPE$COUNT,
                    vae_decode_only = TRUE,
-                   free_params_immediately = TRUE,
+                   free_params_immediately = FALSE,
                    keep_clip_on_cpu = FALSE,
                    keep_vae_on_cpu = FALSE,
                    diffusion_flash_attn = FALSE,

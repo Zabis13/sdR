@@ -16,7 +16,7 @@ sd_ctx(
   n_threads = 0L,
   wtype = SD_TYPE$COUNT,
   vae_decode_only = TRUE,
-  free_params_immediately = TRUE,
+  free_params_immediately = FALSE,
   keep_clip_on_cpu = FALSE,
   keep_vae_on_cpu = FALSE,
   diffusion_flash_attn = FALSE,
@@ -49,7 +49,10 @@ sd_ctx(
 
 \item{vae_decode_only}{If TRUE, only load VAE decoder (saves memory)}
 
-\item{free_params_immediately}{Free model params after loading into backend}
+\item{free_params_immediately}{Free model params after first computation.
+If TRUE, the context can only be used for a single generation — subsequent
+calls will crash. Set to TRUE only when you need to save memory and will
+not reuse the context. Default is FALSE.}
 
 \item{keep_clip_on_cpu}{Keep CLIP model on CPU even when using GPU}
 
