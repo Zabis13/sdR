@@ -11,7 +11,19 @@ Authors@R: c(
         comment = "Author of the GGML library"),
     person("leejet",
         role = c("ctb", "cph"),
-        comment = "Author of stable-diffusion.cpp")
+        comment = "Author of stable-diffusion.cpp"),
+    person("stduhpf",
+        role = "ctb",
+        comment = "Core contributor to stable-diffusion.cpp"),
+    person("Green-Sky",
+        role = "ctb",
+        comment = "Contributor to stable-diffusion.cpp"),
+    person("wbruna",
+        role = "ctb",
+        comment = "Contributor to stable-diffusion.cpp"),
+    person("akleine",
+        role = "ctb",
+        comment = "Contributor to stable-diffusion.cpp")
     )
 Description: Provides Stable Diffusion image generation in R using the 'ggmlR'
     tensor library. Supports text-to-image and image-to-image generation with
@@ -25,8 +37,6 @@ Encoding: UTF-8
 Imports:
     Rcpp (>= 1.0.0),
     ggmlR (>= 0.5.0),
-    R6,
-    jsonlite,
     png
 LinkingTo:
     Rcpp,

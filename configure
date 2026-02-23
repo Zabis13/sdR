@@ -13,7 +13,6 @@ else
 fi
 
 # Check if ggmlR was built with Vulkan support
-# ggml_vulkan_status() prints "Vulkan: AVAILABLE" when Vulkan is available
 GGMLR_HAS_VULKAN=$($RSCRIPT -e 'out <- capture.output(ggmlR::ggml_vulkan_status()); if (any(grepl("AVAILABLE", out))) cat("yes") else cat("no")' 2>/dev/null)
 
 if [ "$GGMLR_HAS_VULKAN" = "yes" ]; then

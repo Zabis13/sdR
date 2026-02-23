@@ -3204,8 +3204,12 @@ sd_image_t* generate_image_internal(sd_ctx_t* sd_ctx,
         // Generally, when using the provided command line, the seed is always >0.
         // However, to prevent potential issues if 'stable-diffusion.cpp' is invoked as a library
         // by a third party with a seed <0, let's incorporate randomization here.
+#ifdef GGML_R_PACKAGE
+        seed = (int64_t)(time(nullptr)) % INT32_MAX;
+#else
         srand((int)time(nullptr));
         seed = rand();
+#endif
     }
 
     if (!std::isfinite(guidance.img_cfg)) {
@@ -3488,8 +3492,12 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx, const sd_img_gen_params_t* sd_img_g
 
     int64_t seed = sd_img_gen_params->seed;
     if (seed < 0) {
+#ifdef GGML_R_PACKAGE
+        seed = (int64_t)(time(nullptr)) % INT32_MAX;
+#else
         srand((int)time(nullptr));
         seed = rand();
+#endif
     }
     sd_ctx->sd->rng->manual_seed(seed);
     sd_ctx->sd->sampler_rng->manual_seed(seed);

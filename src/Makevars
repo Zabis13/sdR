@@ -1,38 +1,28 @@
 CXX_STD = CXX17
 
 # ggmlR installed paths
-# Headers: via LinkingTo in DESCRIPTION → auto -I.../ggmlR/include
-# Static library: inst/lib/libggml.a
-GGMLR_LIB = $(shell Rscript -e "cat(system.file('lib', package='ggmlR'))")
-GGMLR_INCLUDE = $(shell Rscript -e "cat(system.file('include', package='ggmlR'))")
+GGMLR_LIB = $(shell "$(R_HOME)/bin/Rscript" -e "cat(system.file('lib', package='ggmlR'))")
+GGMLR_INCLUDE = $(shell "$(R_HOME)/bin/Rscript" -e "cat(system.file('include', package='ggmlR'))")
 
 # Vulkan flags (auto-detected by configure)
 VULKAN_CPPFLAGS = -DSD_USE_VULKAN 
 VULKAN_LIBS = -lvulkan 
 
-# OpenMP (same approach as ggmlR)
-OPENMP_CPPFLAGS = -DGGML_USE_OPENMP
-OPENMP_CFLAGS = -fopenmp
-OPENMP_CXXFLAGS = -fopenmp
-
-# Include paths:
+# Include paths and defines:
 #   -Isd             : stable-diffusion.cpp headers
 #   -Isd/thirdparty  : json.hpp, stb_image*.h, zip.h, etc.
-#   ggmlR/include    : ggml.h etc. (added automatically by LinkingTo)
-#
-# r_ggml_compat.h: redirect printf/fprintf/abort to R-safe alternatives
-# GGML_R_PACKAGE: activates the redirects in r_ggml_compat.h
-# D_GNU_SOURCE: needed by ggml for some POSIX features
-
-SD_CPPFLAGS = -Isd -Isd/thirdparty \
+#   r_ggml_compat.h  : redirect printf/fprintf/abort to R-safe alternatives
+#   GGML_R_PACKAGE   : activates the redirects in r_ggml_compat.h
+#   _GNU_SOURCE      : needed by ggml for some POSIX features
+PKG_CPPFLAGS = -Isd -Isd/thirdparty \
   -DGGML_USE_CPU -D_GNU_SOURCE \
   -DGGML_MAX_NAME=128 \
-  -DGGML_R_PACKAGE -include $(GGMLR_INCLUDE)/r_ggml_compat.h
+  -DGGML_R_PACKAGE -include $(GGMLR_INCLUDE)/r_ggml_compat.h \
+  -DGGML_USE_OPENMP $(VULKAN_CPPFLAGS)
 
-PKG_CPPFLAGS = $(SD_CPPFLAGS) $(OPENMP_CPPFLAGS) $(VULKAN_CPPFLAGS)
-PKG_CFLAGS = $(OPENMP_CFLAGS)
-PKG_CXXFLAGS = $(OPENMP_CXXFLAGS)
-PKG_LIBS = -L$(GGMLR_LIB) -lggml $(OPENMP_CXXFLAGS) $(VULKAN_LIBS) -lpthread -lm
+PKG_CXXFLAGS = -fopenmp
+PKG_CFLAGS = -fopenmp
+PKG_LIBS = -L$(GGMLR_LIB) -lggml -fopenmp $(VULKAN_LIBS) -lpthread -lm
 
 # stable-diffusion.cpp objects
 SD_OBJECTS = \
@@ -45,11 +35,11 @@ SD_OBJECTS = \
   sd/version.o \
   sd/thirdparty/zip.o
 
-# Rcpp interface (includes R.h → needs R_GGML_IO_IMPL to disable compat macros)
+# Rcpp interface objects
 R_INTERFACE_OBJECTS = RcppExports.o sdR_interface.o
+
+OBJECTS = $(R_INTERFACE_OBJECTS) $(SD_OBJECTS)
 
 # Disable r_ggml_compat.h macros for files that include R headers
 RcppExports.o: PKG_CPPFLAGS += -DR_GGML_IO_IMPL
 sdR_interface.o: PKG_CPPFLAGS += -DR_GGML_IO_IMPL
-
-OBJECTS = $(R_INTERFACE_OBJECTS) $(SD_OBJECTS)

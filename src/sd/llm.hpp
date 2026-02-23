@@ -1,6 +1,9 @@
 #ifndef __LLM_HPP__
 #define __LLM_HPP__
 
+#ifdef GGML_R_PACKAGE
+#include <R_ext/Print.h>
+#endif
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -1543,9 +1546,17 @@ namespace LLM {
                 std::vector<int>& tokens    = std::get<0>(tokens_and_weights);
                 std::vector<float>& weights = std::get<1>(tokens_and_weights);
                 for (auto token : tokens) {
+#ifdef GGML_R_PACKAGE
+                    Rprintf("%d ", token);
+#else
                     printf("%d ", token);
+#endif
                 }
+#ifdef GGML_R_PACKAGE
+                Rprintf("\n");
+#else
                 printf("\n");
+#endif
                 auto input_ids          = vector_to_ggml_tensor_i32(work_ctx, tokens);
                 struct ggml_tensor* out = nullptr;
 
@@ -1583,9 +1594,17 @@ namespace LLM {
                 std::vector<int>& tokens    = std::get<0>(tokens_and_weights);
                 std::vector<float>& weights = std::get<1>(tokens_and_weights);
                 for (auto token : tokens) {
+#ifdef GGML_R_PACKAGE
+                    Rprintf("%d ", token);
+#else
                     printf("%d ", token);
+#endif
                 }
+#ifdef GGML_R_PACKAGE
+                Rprintf("\n");
+#else
                 printf("\n");
+#endif
                 auto input_ids          = vector_to_ggml_tensor_i32(work_ctx, tokens);
                 struct ggml_tensor* out = nullptr;
 
@@ -1606,9 +1625,17 @@ namespace LLM {
                 std::vector<int>& tokens    = std::get<0>(tokens_and_weights);
                 std::vector<float>& weights = std::get<1>(tokens_and_weights);
                 for (auto token : tokens) {
+#ifdef GGML_R_PACKAGE
+                    Rprintf("%d ", token);
+#else
                     printf("%d ", token);
+#endif
                 }
+#ifdef GGML_R_PACKAGE
+                Rprintf("\n");
+#else
                 printf("\n");
+#endif
                 auto input_ids          = vector_to_ggml_tensor_i32(work_ctx, tokens);
                 struct ggml_tensor* out = nullptr;
 
@@ -1629,9 +1656,17 @@ namespace LLM {
                 std::vector<int>& tokens    = std::get<0>(tokens_and_weights);
                 std::vector<float>& weights = std::get<1>(tokens_and_weights);
                 for (auto token : tokens) {
+#ifdef GGML_R_PACKAGE
+                    Rprintf("%d ", token);
+#else
                     printf("%d ", token);
+#endif
                 }
+#ifdef GGML_R_PACKAGE
+                Rprintf("\n");
+#else
                 printf("\n");
+#endif
                 auto input_ids          = vector_to_ggml_tensor_i32(work_ctx, tokens);
                 struct ggml_tensor* out = nullptr;
 

@@ -1,4 +1,7 @@
 #include "util.h"
+#ifdef GGML_R_PACKAGE
+#include <R_ext/Print.h>
+#endif
 #include <algorithm>
 #include <cmath>
 #include <codecvt>
@@ -366,8 +369,12 @@ void pretty_progress(int step, int steps, float time) {
         speed = 1.0f / speed;
         unit  = "it/s";
     }
+#ifdef GGML_R_PACKAGE
+    Rprintf("\r%s %i/%i - %.2f%s%s", progress.c_str(), step, steps, speed, unit, lf);
+#else
     printf("\r%s %i/%i - %.2f%s\033[K%s", progress.c_str(), step, steps, speed, unit, lf);
     fflush(stdout);  // for linux
+#endif
 }
 
 std::string ltrim(const std::string& s) {

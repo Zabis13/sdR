@@ -11,7 +11,8 @@ sd_system_info <- function() {
     sdR_version = as.character(utils::packageVersion("sdR")),
     sd_cpp_version = sd_version_cpp(),
     system_info = sd_system_info_cpp(),
-    num_cores = sd_num_physical_cores_cpp()
+    num_cores = sd_num_physical_cores_cpp(),
+    vulkan_available = ggmlR::ggml_vulkan_available()
   )
   class(info) <- "sd_system_info"
   info
@@ -24,5 +25,6 @@ print.sd_system_info <- function(x, ...) {
   cat("  sd.cpp version: ", x$sd_cpp_version, "\n")
   cat("  Physical cores: ", x$num_cores, "\n")
   cat("  Backend info:   ", x$system_info, "\n")
+  cat("  Vulkan GPU:     ", if (x$vulkan_available) "available" else "not available", "\n")
   invisible(x)
 }

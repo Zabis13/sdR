@@ -1,6 +1,9 @@
 #ifndef __T5_HPP__
 #define __T5_HPP__
 
+#ifdef GGML_R_PACKAGE
+#include <R_ext/Print.h>
+#endif
 #include <cfloat>
 #include <limits>
 #include <map>
@@ -977,9 +980,17 @@ struct T5Embedder {
             std::vector<float>& weights = std::get<1>(tokens_and_weights);
             std::vector<float>& masks   = std::get<2>(tokens_and_weights);
             for (auto token : tokens) {
+#ifdef GGML_R_PACKAGE
+                Rprintf("%d ", token);
+#else
                 printf("%d ", token);
+#endif
             }
+#ifdef GGML_R_PACKAGE
+            Rprintf("\n");
+#else
             printf("\n");
+#endif
             auto input_ids          = vector_to_ggml_tensor_i32(work_ctx, tokens);
             auto attention_mask     = vector_to_ggml_tensor(work_ctx, masks);
             struct ggml_tensor* out = nullptr;

@@ -1,6 +1,5 @@
 # sdR package initialization and constants
 
-#' @import R6
 #' @importFrom Rcpp sourceCpp
 NULL
 

@@ -5,3 +5,5 @@
 ^docs$
 ^_pkgdown\.yml$
 ^vignettes/articles$
+^\.claude$
+^TODO\.md$

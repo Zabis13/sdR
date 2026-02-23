@@ -1,3 +1,6 @@
+#ifdef GGML_R_PACKAGE
+#include <R_ext/Print.h>
+#endif
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -1012,7 +1015,11 @@ bool ModelLoader::init_from_ckpt_file(const std::string& file_path, const std::s
             size_t pos       = name.find("data.pkl");
             if (pos != std::string::npos) {
                 std::string dir = name.substr(0, pos);
+#ifdef GGML_R_PACKAGE
+                Rprintf("ZIP %d, name = %s, dir = %s \n", i, name.c_str(), dir.c_str());
+#else
                 printf("ZIP %d, name = %s, dir = %s \n", i, name.c_str(), dir.c_str());
+#endif
                 void* pkl_data = nullptr;
                 size_t pkl_size;
                 zip_entry_read(zip, &pkl_data, &pkl_size);
@@ -1615,7 +1622,11 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, int n_thread
         total_tensors_processed += file_tensors.size();
         pretty_progress(static_cast<int>(total_tensors_processed), static_cast<int>(total_tensors_to_process), (ggml_time_ms() - t_start) / 1000.0f / (total_tensors_processed + 1e-6f));
         if (total_tensors_processed < total_tensors_to_process) {
+#ifdef GGML_R_PACKAGE
+            Rprintf("\n");
+#else
             printf("\n");
+#endif
         }
     }
 
