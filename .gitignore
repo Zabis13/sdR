@@ -5,4 +5,12 @@
 src/*.o
 src/*.so
 src/*.dll
+src/**/*.o
+src/**/*.so
+src/**/*.dll
+src/sd/vocab.hpp
+src/sd/vocab_mistral.hpp
+src/sd/vocab_qwen.hpp
+src/sd/vocab_umt5.hpp
+sdR.Rcheck/
 TODO.md
