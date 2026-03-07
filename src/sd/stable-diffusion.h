@@ -152,6 +152,12 @@ typedef struct {
 } sd_tiling_params_t;
 
 typedef struct {
+    bool enabled;
+    int tile_size;      // tile size in latent pixels (e.g. 64 = 512px for SD1.5)
+    float tile_overlap; // overlap fraction 0.0-0.5 (default 0.25)
+} sd_tiled_sample_params_t;
+
+typedef struct {
     const char* name;
     const char* path;
 } sd_embedding_t;
@@ -297,6 +303,7 @@ typedef struct {
     float control_strength;
     sd_pm_params_t pm_params;
     sd_tiling_params_t vae_tiling_params;
+    sd_tiled_sample_params_t tiled_sample_params;
     sd_cache_params_t cache;
 } sd_img_gen_params_t;
 

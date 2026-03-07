@@ -23,7 +23,8 @@ sd_ctx(
   rng_type = RNG_TYPE$CUDA,
   prediction = NULL,
   lora_apply_mode = LORA_APPLY_MODE$AUTO,
-  flow_shift = 0
+  flow_shift = 0,
+  model_type = "sd1"
 )
 }
 \arguments{
@@ -67,9 +68,15 @@ not reuse the context. Default is FALSE.}
 \item{lora_apply_mode}{LoRA application mode (see \code{LORA_APPLY_MODE})}
 
 \item{flow_shift}{Flow shift value for Flux models}
+
+\item{model_type}{Model architecture hint: \code{"sd1"}, \code{"sd2"},
+\code{"sdxl"}, \code{"flux"}, or \code{"sd3"}. Used by
+\code{\link{sd_txt2img_highres}} to determine native tile size
+(512 for SD1/SD2, 1024 for SDXL/Flux/SD3). Default \code{"sd1"}.}
 }
 \value{
-An external pointer to the SD context (class "sd_ctx")
+An external pointer to the SD context (class "sd_ctx") with
+  attribute \code{model_type}.
 }
 \description{
 Loads a model and creates a context for image generation.

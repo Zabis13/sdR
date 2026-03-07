@@ -51,25 +51,40 @@ test_that("sd_ctx rejects missing model", {
   expect_error(sd_ctx("/nonexistent/model.safetensors"), "not found")
 })
 
-test_that("sd_txt2img accepts vae_tiling parameters", {
-  # Verify that the function signature accepts tiling params without error
+test_that("sd_txt2img accepts vae_mode parameters", {
   args <- formals(sd_txt2img)
-  expect_true("vae_tiling" %in% names(args))
+  expect_true("vae_mode" %in% names(args))
+  expect_true("vae_auto_threshold" %in% names(args))
   expect_true("vae_tile_size" %in% names(args))
   expect_true("vae_tile_overlap" %in% names(args))
-  expect_false(eval(args$vae_tiling))
+  expect_true("vae_tile_rel_x" %in% names(args))
+  expect_true("vae_tile_rel_y" %in% names(args))
+  expect_true("vae_tiling" %in% names(args))  # deprecated but present
+  expect_equal(eval(args$vae_mode), "auto")
+  expect_equal(eval(args$vae_auto_threshold), 1048576L)
   expect_equal(eval(args$vae_tile_size), 64L)
   expect_equal(eval(args$vae_tile_overlap), 0.25)
+  expect_null(eval(args$vae_tile_rel_x))
+  expect_null(eval(args$vae_tile_rel_y))
+  expect_null(eval(args$vae_tiling))
 })
 
-test_that("sd_img2img accepts vae_tiling parameters", {
+test_that("sd_img2img accepts vae_mode parameters", {
   args <- formals(sd_img2img)
-  expect_true("vae_tiling" %in% names(args))
+  expect_true("vae_mode" %in% names(args))
+  expect_true("vae_auto_threshold" %in% names(args))
   expect_true("vae_tile_size" %in% names(args))
   expect_true("vae_tile_overlap" %in% names(args))
-  expect_false(eval(args$vae_tiling))
+  expect_true("vae_tile_rel_x" %in% names(args))
+  expect_true("vae_tile_rel_y" %in% names(args))
+  expect_true("vae_tiling" %in% names(args))  # deprecated but present
+  expect_equal(eval(args$vae_mode), "auto")
+  expect_equal(eval(args$vae_auto_threshold), 1048576L)
   expect_equal(eval(args$vae_tile_size), 64L)
   expect_equal(eval(args$vae_tile_overlap), 0.25)
+  expect_null(eval(args$vae_tile_rel_x))
+  expect_null(eval(args$vae_tile_rel_y))
+  expect_null(eval(args$vae_tiling))
 })
 
 test_that("sd_load_image and sd_image_to_array roundtrip", {

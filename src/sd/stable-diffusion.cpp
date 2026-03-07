@@ -94,6 +94,106 @@ void suppress_pp(int step, int steps, float time, void* data) {
     return;
 }
 
+/*============================================ Tiled Sampling Helpers =============================================*/
+
+// Build a 2D Gaussian weight mask for tiled sampling (MultiDiffusion-style)
+// The mask has peak 1.0 at center and decays towards edges.
+// sigma_factor controls width: larger = wider Gaussian (less edge falloff).
+static void build_gaussian_mask(float* mask, int w, int h, float sigma_factor = 0.3f) {
+    float cx = (w - 1) * 0.5f;
+    float cy = (h - 1) * 0.5f;
+    float sx = w * sigma_factor;
+    float sy = h * sigma_factor;
+    float inv_2sx2 = 1.0f / (2.0f * sx * sx);
+    float inv_2sy2 = 1.0f / (2.0f * sy * sy);
+    for (int y = 0; y < h; y++) {
+        float dy = y - cy;
+        for (int x = 0; x < w; x++) {
+            float dx = x - cx;
+            mask[y * w + x] = std::exp(-(dx * dx * inv_2sx2 + dy * dy * inv_2sy2));
+        }
+    }
+}
+
+// Compute tile grid positions for tiled sampling in latent space.
+// Returns vector of (x, y) offsets (0-based) such that all tiles with
+// the given size and overlap cover the full [0..width) x [0..height) area.
+static std::vector<std::pair<int,int>> compute_tile_grid(
+        int width, int height, int tile_size, float overlap_frac) {
+    int overlap_px = std::max(1, (int)(tile_size * overlap_frac));
+    int stride = tile_size - overlap_px;
+    if (stride < 1) stride = 1;
+
+    std::vector<int> xs, ys;
+
+    for (int x = 0; x <= std::max(0, width - tile_size); x += stride) {
+        xs.push_back(x);
+    }
+    if (xs.empty() || xs.back() + tile_size < width) {
+        xs.push_back(std::max(0, width - tile_size));
+    }
+
+    for (int y = 0; y <= std::max(0, height - tile_size); y += stride) {
+        ys.push_back(y);
+    }
+    if (ys.empty() || ys.back() + tile_size < height) {
+        ys.push_back(std::max(0, height - tile_size));
+    }
+
+    std::vector<std::pair<int,int>> grid;
+    for (int y : ys) {
+        for (int x : xs) {
+            grid.push_back({x, y});
+        }
+    }
+    return grid;
+}
+
+// Extract a 2D tile from a latent tensor [W, H, C, N] at position (tx, ty)
+// into a pre-allocated tile tensor [tile_w, tile_h, C, N].
+static void extract_latent_tile(const ggml_tensor* src, ggml_tensor* dst,
+                                int tx, int ty) {
+    int tw = (int)dst->ne[0];
+    int th = (int)dst->ne[1];
+    int C  = (int)src->ne[2];
+    int N  = (int)src->ne[3];
+    for (int n = 0; n < N; n++) {
+        for (int c = 0; c < C; c++) {
+            for (int y = 0; y < th; y++) {
+                for (int x = 0; x < tw; x++) {
+                    float v = ggml_ext_tensor_get_f32(src, tx + x, ty + y, c, n);
+                    ggml_ext_tensor_set_f32(dst, v, x, y, c, n);
+                }
+            }
+        }
+    }
+}
+
+// Accumulate a denoised tile into global noise_pred and weight_map buffers
+// with Gaussian weighting. noise_pred and weight_map have same shape as
+// the global latent [W, H, C, N].
+static void accumulate_tile(const ggml_tensor* tile_denoised,
+                            float* noise_pred, float* weight_map,
+                            const float* gauss_mask,
+                            int tx, int ty,
+                            int global_w, int global_h, int C, int N) {
+    int tw = (int)tile_denoised->ne[0];
+    int th = (int)tile_denoised->ne[1];
+    for (int n = 0; n < N; n++) {
+        for (int c = 0; c < C; c++) {
+            for (int y = 0; y < th; y++) {
+                for (int x = 0; x < tw; x++) {
+                    float val = ggml_ext_tensor_get_f32(tile_denoised, x, y, c, n);
+                    float w   = gauss_mask[y * tw + x];
+                    int gidx  = ((n * C + c) * global_h + (ty + y)) * global_w + (tx + x);
+                    noise_pred[gidx] += val * w;
+                    weight_map[gidx] += w;
+                }
+            }
+        }
+    }
+}
+
 /*=============================================== StableDiffusionGGML ================================================*/
 
 class StableDiffusionGGML {
@@ -130,8 +230,9 @@ public:
 
     std::string taesd_path;
     bool use_tiny_autoencoder            = false;
-    sd_tiling_params_t vae_tiling_params = {false, 0, 0, 0.5f, 0, 0};
-    bool offload_params_to_cpu           = false;
+    sd_tiling_params_t vae_tiling_params       = {false, 0, 0, 0.5f, 0, 0};
+    sd_tiled_sample_params_t tiled_sample_params = {false, 64, 0.25f};
+    bool offload_params_to_cpu                 = false;
     bool use_pmid                        = false;
 
     bool is_using_v_parameterization     = false;
@@ -1775,33 +1876,49 @@ public:
             x = denoiser->noise_scaling(sigmas[0], noise, x);
         }
 
-        struct ggml_tensor* noised_input = ggml_dup_tensor(work_ctx, x);
+        // For tiled sampling, denoise buffers must match tile size, not full latent.
+        // The denoise lambda operates on tile-sized tensors; the tiled wrapper
+        // splits/merges the full latent around it.
+        struct ggml_tensor* denoise_shape_ref = x;  // full latent by default
+        if (tiled_sample_params.enabled) {
+            int ts = tiled_sample_params.tile_size;
+            int latent_w = (int)x->ne[0];
+            int latent_h = (int)x->ne[1];
+            if (ts < latent_w || ts < latent_h) {
+                // Allocate a tile-sized reference for buffer allocation
+                denoise_shape_ref = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32,
+                    std::min(ts, latent_w), std::min(ts, latent_h),
+                    x->ne[2], x->ne[3]);
+            }
+        }
+
+        struct ggml_tensor* noised_input = ggml_dup_tensor(work_ctx, denoise_shape_ref);
 
         bool has_unconditioned = img_cfg_scale != 1.0 && uncond.c_crossattn != nullptr;
         bool has_img_cond      = cfg_scale != img_cfg_scale && img_cond.c_crossattn != nullptr;
         bool has_skiplayer     = slg_scale != 0.0 && skip_layers.size() > 0;
 
         // denoise wrapper
-        struct ggml_tensor* out_cond     = ggml_dup_tensor(work_ctx, x);
+        struct ggml_tensor* out_cond     = ggml_dup_tensor(work_ctx, denoise_shape_ref);
         struct ggml_tensor* out_uncond   = nullptr;
         struct ggml_tensor* out_skip     = nullptr;
         struct ggml_tensor* out_img_cond = nullptr;
 
         if (has_unconditioned) {
-            out_uncond = ggml_dup_tensor(work_ctx, x);
+            out_uncond = ggml_dup_tensor(work_ctx, denoise_shape_ref);
         }
         if (has_skiplayer) {
             if (sd_version_is_dit(version)) {
-                out_skip = ggml_dup_tensor(work_ctx, x);
+                out_skip = ggml_dup_tensor(work_ctx, denoise_shape_ref);
             } else {
                 has_skiplayer = false;
                 LOG_WARN("SLG is incompatible with %s models", model_version_to_str[version]);
             }
         }
         if (has_img_cond) {
-            out_img_cond = ggml_dup_tensor(work_ctx, x);
+            out_img_cond = ggml_dup_tensor(work_ctx, denoise_shape_ref);
         }
-        struct ggml_tensor* denoised = ggml_dup_tensor(work_ctx, x);
+        struct ggml_tensor* denoised = ggml_dup_tensor(work_ctx, denoise_shape_ref);
 
         int64_t t0 = ggml_time_us();
 
@@ -2168,14 +2285,140 @@ public:
             return denoised;
         };
 
-        if (!sample_k_diffusion(method, denoise, work_ctx, x, sigmas, sampler_rng, eta)) {
+        // Wrap denoise in tiled denoise if tiled sampling is enabled
+        denoise_cb_t effective_denoise = denoise;
+        if (tiled_sample_params.enabled) {
+            int ts       = tiled_sample_params.tile_size;
+            float t_ovlp = tiled_sample_params.tile_overlap;
+            int latent_w = (int)x->ne[0];
+            int latent_h = (int)x->ne[1];
+            int C        = (int)x->ne[2];
+            int N        = (int)x->ne[3];
+
+            // Clamp tile_size to latent dimensions
+            if (ts > latent_w) ts = latent_w;
+            if (ts > latent_h) ts = latent_h;
+
+            // If the latent fits in a single tile, skip tiled path
+            if (ts >= latent_w && ts >= latent_h) {
+                LOG_INFO("Latent %dx%d fits in single tile %d, using normal sampling", latent_w, latent_h, ts);
+            } else {
+                auto grid = compute_tile_grid(latent_w, latent_h, ts, t_ovlp);
+                LOG_INFO("Tiled sampling: %dx%d latent, tile=%d, overlap=%.2f, %zu tiles",
+                         latent_w, latent_h, ts, t_ovlp, grid.size());
+
+                // Pre-allocate compute_ctx buffer to avoid ~110 MB malloc/free
+                // per compute() call (tiles × cond/uncond × steps)
+                work_diffusion_model->begin_batch_compute();
+
+                // Pre-compute Gaussian mask
+                std::vector<float> gauss_mask(ts * ts);
+                build_gaussian_mask(gauss_mask.data(), ts, ts, 0.3f);
+
+                // Allocate tile input tensor for denoise calls
+                struct ggml_tensor* tile_input = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32, ts, ts, C, N);
+
+                // FIX: these buffers were originally std::vector<float> locals inside
+                // the else block, but the lambda 'effective_denoise' captured them
+                // by reference and was called from sample_k_diffusion() AFTER the
+                // else block ended — use-after-free / dangling reference causing
+                // segfault or heap corruption on tile 2+.
+                // Solution: shared_ptr captured by value in the lambda.
+                size_t buf_size = (size_t)latent_w * latent_h * C * N;
+                auto noise_pred = std::make_shared<std::vector<float>>(buf_size);
+                auto weight_map = std::make_shared<std::vector<float>>(buf_size);
+
+                // Pre-compute weight_map: sum of Gaussian weights at each global position.
+                // This is constant across all steps — compute once, reuse.
+                std::fill(weight_map->begin(), weight_map->end(), 0.0f);
+                for (size_t ti = 0; ti < grid.size(); ti++) {
+                    int tx = grid[ti].first;
+                    int ty = grid[ti].second;
+                    for (int n = 0; n < N; n++) {
+                        for (int c = 0; c < C; c++) {
+                            for (int y = 0; y < ts; y++) {
+                                for (int x = 0; x < ts; x++) {
+                                    float w  = gauss_mask[y * ts + x];
+                                    int gidx = ((n * C + c) * latent_h + (ty + y)) * latent_w + (tx + x);
+                                    (*weight_map)[gidx] += w;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Result tensor: allocated once, reused each step
+                ggml_tensor* tiled_result = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32,
+                                                                latent_w, latent_h, C, N);
+
+                effective_denoise = [&, grid, gauss_mask, tile_input, ts, latent_w, latent_h, C, N, buf_size,
+                                     tiled_result, noise_pred, weight_map](
+                        ggml_tensor* input, float sigma, int step) -> ggml_tensor* {
+                    LOG_DEBUG("[tiled] step=%d sigma=%.4f tiles=%zu",
+                             step, sigma, grid.size());
+                    // Zero noise_pred each step (weight_map is constant)
+                    std::fill(noise_pred->begin(), noise_pred->end(), 0.0f);
+
+                    for (size_t ti = 0; ti < grid.size(); ti++) {
+                        int tx = grid[ti].first;
+                        int ty = grid[ti].second;
+
+                        LOG_DEBUG("[tiled] tile %zu/%zu at (%d,%d)", ti+1, grid.size(), tx, ty);
+                        // Extract tile from current global latent
+                        extract_latent_tile(input, tile_input, tx, ty);
+
+                        // Run denoise on tile
+                        ggml_tensor* tile_denoised = denoise(tile_input, sigma, step);
+                        if (tile_denoised == nullptr) {
+                            LOG_ERROR("[tiled] denoise returned nullptr for tile %zu", ti+1);
+                            return nullptr;
+                        }
+                        LOG_DEBUG("[tiled] tile %zu/%zu done", ti+1, grid.size());
+
+                        // Accumulate weighted result into noise_pred
+                        int tw = (int)tile_denoised->ne[0];
+                        int th = (int)tile_denoised->ne[1];
+                        for (int n = 0; n < N; n++) {
+                            for (int c = 0; c < C; c++) {
+                                for (int y = 0; y < th; y++) {
+                                    for (int x = 0; x < tw; x++) {
+                                        float val = ggml_ext_tensor_get_f32(tile_denoised, x, y, c, n);
+                                        float w   = gauss_mask[y * tw + x];
+                                        int gidx  = ((n * C + c) * latent_h + (ty + y)) * latent_w + (tx + x);
+                                        (*noise_pred)[gidx] += val * w;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Normalize: noise_pred /= weight_map
+                    float* result_data = (float*)tiled_result->data;
+                    for (size_t i = 0; i < buf_size; i++) {
+                        result_data[i] = ((*weight_map)[i] > 1e-8f)
+                            ? (*noise_pred)[i] / (*weight_map)[i]
+                            : 0.0f;
+                    }
+                    return tiled_result;
+                };
+            }
+        }
+
+        if (!sample_k_diffusion(method, effective_denoise, work_ctx, x, sigmas, sampler_rng, eta)) {
             LOG_ERROR("Diffusion model sampling failed");
+            if (tiled_sample_params.enabled) {
+                work_diffusion_model->end_batch_compute();
+            }
             if (control_net) {
                 control_net->free_control_ctx();
                 control_net->free_compute_buffer();
             }
             diffusion_model->free_compute_buffer();
             return NULL;
+        }
+
+        if (tiled_sample_params.enabled) {
+            work_diffusion_model->end_batch_compute();
         }
 
         if (easycache_enabled) {
@@ -3043,7 +3286,8 @@ void sd_img_gen_params_init(sd_img_gen_params_t* sd_img_gen_params) {
     sd_img_gen_params->batch_count       = 1;
     sd_img_gen_params->control_strength  = 0.9f;
     sd_img_gen_params->pm_params         = {nullptr, 0, nullptr, 20.f};
-    sd_img_gen_params->vae_tiling_params = {false, 0, 0, 0.5f, 0.0f, 0.0f};
+    sd_img_gen_params->vae_tiling_params    = {false, 0, 0, 0.5f, 0.0f, 0.0f};
+    sd_img_gen_params->tiled_sample_params  = {false, 64, 0.25f};
     sd_cache_params_init(&sd_img_gen_params->cache);
 }
 
@@ -3457,8 +3701,9 @@ sd_image_t* generate_image_internal(sd_ctx_t* sd_ctx,
 }
 
 sd_image_t* generate_image(sd_ctx_t* sd_ctx, const sd_img_gen_params_t* sd_img_gen_params) {
-    sd_ctx->sd->vae_tiling_params = sd_img_gen_params->vae_tiling_params;
-    int width                     = sd_img_gen_params->width;
+    sd_ctx->sd->vae_tiling_params    = sd_img_gen_params->vae_tiling_params;
+    sd_ctx->sd->tiled_sample_params  = sd_img_gen_params->tiled_sample_params;
+    int width                        = sd_img_gen_params->width;
     int height                    = sd_img_gen_params->height;
 
     int vae_scale_factor            = sd_ctx->sd->get_vae_scale_factor();

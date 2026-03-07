@@ -1,7 +1,7 @@
 Package: sdR
 Type: Package
 Title: Stable Diffusion Image Generation
-Version: 0.1.0
+Version: 0.1.3
 Authors@R: c(
     person("Yuri", "Baramykov",
         email = "lbsbmsu@mail.ru",
@@ -29,7 +29,12 @@ Description: Provides Stable Diffusion image generation in R using the 'ggmlR'
     tensor library. Supports text-to-image and image-to-image generation with
     multiple model versions (SD 1.x, SD 2.x, SDXL). Implements the full
     inference pipeline including CLIP text encoding, UNet denoising, and VAE
-    decoding. Supports CPU and Vulkan GPU backends for computation.
+    encoding/decoding. Unified 'sd_generate()' entry point with automatic
+    strategy selection (direct, tiled sampling, highres fix) based on output
+    resolution and available VRAM. High-resolution generation (2K, 4K+) via
+    tiled VAE decoding, tiled diffusion sampling (MultiDiffusion), and classic
+    highres fix (txt2img + upscale + tiled img2img). Supports CPU and Vulkan
+    GPU backends.
 SystemRequirements: GNU make, curl or wget (for downloading vocabulary files during installation)
 License: MIT + file LICENSE
 URL: https://github.com/Zabis13/sdR
@@ -43,6 +48,7 @@ LinkingTo:
     Rcpp,
     ggmlR
 Suggests:
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    callr
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3

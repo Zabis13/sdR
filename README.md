@@ -14,9 +14,14 @@ sdR exposes a high-level R interface for text-to-image and image-to-image genera
 
 ## Key Features
 
-- **Text-to-image** generation via `sd_txt2img()`, supporting Stable Diffusion 1.x models (e.g. SD 1.5) with typical 512x512 generations taking a few seconds on Vulkan-enabled GPUs.
-- **Image-to-image** workflows via `sd_img2img()`, including noise strength control and reuse of the same denoising pipeline as text-to-image.
+- **Unified `sd_generate()`** — single entry point for all generation modes. Automatically selects the optimal strategy (direct, tiled sampling, or highres fix) based on output resolution and available VRAM (`vram_gb` parameter in `sd_ctx()`). Users don't need to think about tiling at all.
+- **VRAM-aware auto-routing**: tile size scales with available VRAM (<4 GB → 256px tiles, 4-8 GB → 512px, 8-16 GB → 768px, >16 GB → direct generation without tiling).
+- **Text-to-image** generation supporting Stable Diffusion 1.x models (e.g. SD 1.5) with typical 512x512 generations taking a few seconds on Vulkan-enabled GPUs.
+- **Image-to-image** workflows with noise strength control and reuse of the same denoising pipeline as text-to-image. Requires `vae_decode_only = FALSE` in context.
 - **Optional upscaling** using a dedicated upscaler context managed entirely in C++ and exposed to R through external pointers.
+- **Tiled VAE** for high-resolution images (2K, 4K+) with bounded VRAM usage. `vae_mode = "auto"` enables tiling automatically when image area exceeds a configurable threshold. Supports per-axis relative tile sizing (`vae_tile_rel_x`, `vae_tile_rel_y`) for non-square aspect ratios.
+- **Tiled diffusion sampling** (MultiDiffusion): at each denoising step the latent is split into overlapping tiles, each denoised independently, and merged with Gaussian weighting. VRAM usage scales with tile size, not output resolution.
+- **Highres Fix**: classic two-pass pipeline — generates base image at native model resolution, upscales (bilinear or ESRGAN), then refines with tiled img2img at low denoising strength. Produces coherent high-resolution images (2K, 4K+) with global composition preserved.
 - **Image utilities** in R: saving generated images to PNG, converting between internal tensors and R raw vectors, and simple inspection of output tensors.
 - **System introspection** via `sd_system_info()`, reporting GGML/Vulkan capabilities as detected by ggmlR at build time.
 

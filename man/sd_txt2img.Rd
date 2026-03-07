@@ -20,9 +20,13 @@ sd_txt2img(
   eta = 0,
   control_image = NULL,
   control_strength = 0.9,
-  vae_tiling = FALSE,
+  vae_mode = "auto",
+  vae_auto_threshold = 1048576L,
   vae_tile_size = 64L,
-  vae_tile_overlap = 0.25
+  vae_tile_overlap = 0.25,
+  vae_tile_rel_x = NULL,
+  vae_tile_rel_y = NULL,
+  vae_tiling = NULL
 )
 }
 \arguments{
@@ -56,11 +60,29 @@ sd_txt2img(
 
 \item{control_strength}{ControlNet strength (default 0.9)}
 
-\item{vae_tiling}{Enable tiled VAE decode to reduce VRAM usage (default FALSE)}
+\item{vae_mode}{VAE processing mode: \code{"normal"} (no tiling),
+\code{"tiled"} (always tile), or \code{"auto"} (tile when
+\code{width * height > vae_auto_threshold}). Default \code{"auto"}.}
 
-\item{vae_tile_size}{Tile size in latent pixels for tiled VAE (default 64)}
+\item{vae_auto_threshold}{Pixel area threshold for \code{vae_mode = "auto"}.
+Tiling activates when \code{width * height} exceeds this value.
+Default \code{1048576L} (1024x1024 pixels). Adjust for your VRAM budget.}
+
+\item{vae_tile_size}{Tile size in latent pixels for tiled VAE (default 64).
+Ignored when \code{vae_tile_rel_x}/\code{vae_tile_rel_y} are set.}
 
 \item{vae_tile_overlap}{Overlap ratio between tiles, 0.0-0.5 (default 0.25)}
+
+\item{vae_tile_rel_x}{Relative tile width as fraction of latent width (0-1)
+or number of tiles (>1). NULL = use \code{vae_tile_size}. Takes priority
+over \code{vae_tile_size}.}
+
+\item{vae_tile_rel_y}{Relative tile height as fraction of latent height (0-1)
+or number of tiles (>1). NULL = use \code{vae_tile_size}. Takes priority
+over \code{vae_tile_size}.}
+
+\item{vae_tiling}{\strong{Deprecated.} Use \code{vae_mode} instead.
+If \code{TRUE}, equivalent to \code{vae_mode = "tiled"}.}
 }
 \value{
 List of SD images. Each image is a list with

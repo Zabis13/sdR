@@ -1648,6 +1648,11 @@ protected:
     struct ggml_context* compute_ctx    = nullptr;
     struct ggml_gallocr* compute_allocr = nullptr;
 
+    // Pre-allocated buffer for compute_ctx to avoid malloc/free per compute() call.
+    // When set, alloc_compute_ctx() reuses this buffer instead of allocating new memory.
+    void* compute_ctx_buf       = nullptr;
+    size_t compute_ctx_buf_size = 0;
+
     std::shared_ptr<WeightAdapter> weight_adapter = nullptr;
 
     std::vector<float> one_vec = {1.f};
@@ -1710,8 +1715,14 @@ protected:
     void alloc_compute_ctx() {
         struct ggml_init_params params;
         params.mem_size   = static_cast<size_t>(ggml_tensor_overhead() * MAX_GRAPH_SIZE + ggml_graph_overhead());
-        params.mem_buffer = nullptr;
         params.no_alloc   = true;
+
+        if (compute_ctx_buf != nullptr) {
+            // Reuse pre-allocated buffer (no malloc/free per call)
+            params.mem_buffer = compute_ctx_buf;
+        } else {
+            params.mem_buffer = nullptr;
+        }
 
         compute_ctx = ggml_init(params);
         GGML_ASSERT(compute_ctx != nullptr);
@@ -1914,6 +1925,26 @@ protected:
 public:
     virtual std::string get_desc() = 0;
 
+    // Pre-allocate compute_ctx buffer for batch/tiled compute.
+    // Eliminates ~110 MB malloc/free per compute() call.
+    void begin_batch_compute() {
+        if (compute_ctx_buf == nullptr) {
+            compute_ctx_buf_size = static_cast<size_t>(ggml_tensor_overhead() * MAX_GRAPH_SIZE + ggml_graph_overhead());
+            compute_ctx_buf = malloc(compute_ctx_buf_size);
+            GGML_ASSERT(compute_ctx_buf != nullptr);
+        }
+    }
+
+    void end_batch_compute() {
+        // Free compute_ctx first (it may reference the buffer)
+        free_compute_ctx();
+        if (compute_ctx_buf != nullptr) {
+            free(compute_ctx_buf);
+            compute_ctx_buf = nullptr;
+            compute_ctx_buf_size = 0;
+        }
+    }
+
     GGMLRunner(ggml_backend_t backend, bool offload_params_to_cpu = false)
         : runtime_backend(backend) {
         alloc_params_ctx();
@@ -1929,6 +1960,10 @@ public:
         free_compute_buffer();
         free_params_ctx();
         free_compute_ctx();
+        if (compute_ctx_buf != nullptr) {
+            free(compute_ctx_buf);
+            compute_ctx_buf = nullptr;
+        }
         if (params_backend != runtime_backend) {
             ggml_backend_free(params_backend);
         }
@@ -1948,8 +1983,13 @@ public:
     }
 
     void reset_compute_ctx() {
-        free_compute_ctx();
-        alloc_compute_ctx();
+        if (compute_ctx != nullptr && compute_ctx_buf != nullptr) {
+            // Fast path: reuse pre-allocated buffer, just reset the allocator position
+            ggml_reset(compute_ctx);
+        } else {
+            free_compute_ctx();
+            alloc_compute_ctx();
+        }
     }
 
     bool alloc_params_buffer() {
