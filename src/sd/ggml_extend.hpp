@@ -2279,7 +2279,7 @@ public:
           force_prec_f32(force_prec_f32),
           scale(scale) {}
 
-    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) {
+    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) override {
         struct ggml_tensor* w = params["weight"];
         struct ggml_tensor* b = nullptr;
         if (bias) {
@@ -2323,7 +2323,7 @@ public:
     }
 
     struct ggml_tensor* forward(GGMLRunnerContext* ctx,
-                                struct ggml_tensor* input_ids) {
+                                struct ggml_tensor* input_ids) override {
         // input_ids: [N, n_token]
         auto weight = params["weight"];
 
@@ -2383,11 +2383,11 @@ public:
         scale = scale_value;
     }
 
-    std::string get_desc() {
+    std::string get_desc() override {
         return "Conv2d";
     }
 
-    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) {
+    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) override {
         struct ggml_tensor* w = params["weight"];
         struct ggml_tensor* b = nullptr;
         if (bias) {
@@ -2466,7 +2466,7 @@ public:
           dilation(dilation),
           bias(bias) {}
 
-    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) {
+    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) override {
         struct ggml_tensor* w = params["weight"];
         struct ggml_tensor* b = nullptr;
         if (ctx->weight_adapter) {
@@ -2518,7 +2518,7 @@ public:
           elementwise_affine(elementwise_affine),
           bias(bias) {}
 
-    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) {
+    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) override {
         struct ggml_tensor* w = nullptr;
         struct ggml_tensor* b = nullptr;
 
@@ -2605,7 +2605,7 @@ public:
         : hidden_size(hidden_size),
           eps(eps) {}
 
-    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) {
+    struct ggml_tensor* forward(GGMLRunnerContext* ctx, struct ggml_tensor* x) override {
         struct ggml_tensor* w = params["weight"];
         if (ctx->weight_adapter) {
             w = ctx->weight_adapter->patch_weight(ctx->ggml_ctx, w, prefix + "weight");

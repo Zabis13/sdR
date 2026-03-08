@@ -13,9 +13,10 @@ OPENMP_CXXFLAGS = @OPENMP_CXXFLAGS@
 PKG_CPPFLAGS = -Isd -Isd/thirdparty \
   -DGGML_USE_CPU -D_GNU_SOURCE \
   -DGGML_MAX_NAME=128 \
-  -DGGML_R_PACKAGE -include $(GGMLR_INCLUDE)/r_ggml_compat.h \
+  -DGGML_R_PACKAGE \
   $(VULKAN_CPPFLAGS) \
-  $(PKG_CPPFLAGS_WIN)
+  $(PKG_CPPFLAGS_WIN) \
+  -include $(GGMLR_INCLUDE)/r_ggml_compat.h
 
 PKG_CXXFLAGS = $(OPENMP_CXXFLAGS)
 PKG_LIBS = -L$(GGMLR_LIB) -lggml $(OPENMP_CXXFLAGS) $(VULKAN_LIBS) -lpthread -lm
@@ -34,7 +35,3 @@ R_INTERFACE_OBJECTS = RcppExports.o sdR_interface.o
 
 OBJECTS = $(R_INTERFACE_OBJECTS) $(SD_OBJECTS)
 
-# R interface files include R headers which conflict with r_ggml_compat.h
-# macro redirections. R_GGML_IO_IMPL disables the macros.
-RcppExports.o: PKG_CPPFLAGS += -DR_GGML_IO_IMPL
-sdR_interface.o: PKG_CPPFLAGS += -DR_GGML_IO_IMPL

@@ -566,7 +566,7 @@ struct TinyImageAutoEncoder : public TinyAutoEncoder {
         return "taesd";
     }
 
-    bool load_from_file(const std::string& file_path, int n_threads) {
+    bool load_from_file(const std::string& file_path, int n_threads) override {
         LOG_INFO("loading taesd from '%s', decode_only = %s", file_path.c_str(), decode_only ? "true" : "false");
         alloc_params_buffer();
         std::map<std::string, ggml_tensor*> taesd_tensors;
@@ -593,7 +593,7 @@ struct TinyImageAutoEncoder : public TinyAutoEncoder {
         return success;
     }
 
-    void get_param_tensors(std::map<std::string, struct ggml_tensor*>& tensors, const std::string prefix) {
+    void get_param_tensors(std::map<std::string, struct ggml_tensor*>& tensors, const std::string prefix) override {
         taesd.get_param_tensors(tensors, prefix);
     }
 
@@ -610,7 +610,7 @@ struct TinyImageAutoEncoder : public TinyAutoEncoder {
                  struct ggml_tensor* z,
                  bool decode_graph,
                  struct ggml_tensor** output,
-                 struct ggml_context* output_ctx = nullptr) {
+                 struct ggml_context* output_ctx = nullptr) override {
         auto get_graph = [&]() -> struct ggml_cgraph* {
             return build_graph(z, decode_graph);
         };
@@ -639,7 +639,7 @@ struct TinyVideoAutoEncoder : public TinyAutoEncoder {
         return "taehv";
     }
 
-    bool load_from_file(const std::string& file_path, int n_threads) {
+    bool load_from_file(const std::string& file_path, int n_threads) override {
         LOG_INFO("loading taehv from '%s', decode_only = %s", file_path.c_str(), decode_only ? "true" : "false");
         alloc_params_buffer();
         std::map<std::string, ggml_tensor*> taehv_tensors;
@@ -666,7 +666,7 @@ struct TinyVideoAutoEncoder : public TinyAutoEncoder {
         return success;
     }
 
-    void get_param_tensors(std::map<std::string, struct ggml_tensor*>& tensors, const std::string prefix) {
+    void get_param_tensors(std::map<std::string, struct ggml_tensor*>& tensors, const std::string prefix) override {
         taehv.get_param_tensors(tensors, prefix);
     }
 
@@ -683,7 +683,7 @@ struct TinyVideoAutoEncoder : public TinyAutoEncoder {
                  struct ggml_tensor* z,
                  bool decode_graph,
                  struct ggml_tensor** output,
-                 struct ggml_context* output_ctx = nullptr) {
+                 struct ggml_context* output_ctx = nullptr) override {
         auto get_graph = [&]() -> struct ggml_cgraph* {
             return build_graph(z, decode_graph);
         };

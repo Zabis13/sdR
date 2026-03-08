@@ -86,7 +86,7 @@ struct UNetModel : public DiffusionModel {
         return unet.unet.adm_in_channels;
     }
 
-    void set_flash_attn_enabled(bool enabled) {
+    void set_flash_attn_enabled(bool enabled) override {
         unet.set_flash_attention_enabled(enabled);
     }
 
@@ -154,7 +154,7 @@ struct MMDiTModel : public DiffusionModel {
         return 768 + 1280;
     }
 
-    void set_flash_attn_enabled(bool enabled) {
+    void set_flash_attn_enabled(bool enabled) override {
         mmdit.set_flash_attention_enabled(enabled);
     }
 
@@ -223,7 +223,7 @@ struct FluxModel : public DiffusionModel {
         return 768;
     }
 
-    void set_flash_attn_enabled(bool enabled) {
+    void set_flash_attn_enabled(bool enabled) override {
         flux.set_flash_attention_enabled(enabled);
     }
 
@@ -297,7 +297,7 @@ struct WanModel : public DiffusionModel {
         return 768;
     }
 
-    void set_flash_attn_enabled(bool enabled) {
+    void set_flash_attn_enabled(bool enabled) override {
         wan.set_flash_attention_enabled(enabled);
     }
 
@@ -371,7 +371,7 @@ struct QwenImageModel : public DiffusionModel {
         return 768;
     }
 
-    void set_flash_attn_enabled(bool enabled) {
+    void set_flash_attn_enabled(bool enabled) override {
         qwen_image.set_flash_attention_enabled(enabled);
     }
 
@@ -441,7 +441,7 @@ struct ZImageModel : public DiffusionModel {
         return 768;
     }
 
-    void set_flash_attn_enabled(bool enabled) {
+    void set_flash_attn_enabled(bool enabled) override {
         z_image.set_flash_attention_enabled(enabled);
     }
 

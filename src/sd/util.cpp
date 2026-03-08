@@ -4,7 +4,6 @@
 #endif
 #include <algorithm>
 #include <cmath>
-#include <codecvt>
 #include <cstdarg>
 #include <fstream>
 #include <locale>
@@ -281,13 +280,46 @@ bool sd_preview_denoised             = true;
 bool sd_preview_noisy                = false;
 
 std::u32string utf8_to_utf32(const std::string& utf8_str) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.from_bytes(utf8_str);
+    std::u32string result;
+    size_t i = 0;
+    while (i < utf8_str.size()) {
+        char32_t cp = 0;
+        unsigned char c = static_cast<unsigned char>(utf8_str[i]);
+        int len = 0;
+        if (c < 0x80) { cp = c; len = 1; }
+        else if ((c & 0xE0) == 0xC0) { cp = c & 0x1F; len = 2; }
+        else if ((c & 0xF0) == 0xE0) { cp = c & 0x0F; len = 3; }
+        else if ((c & 0xF8) == 0xF0) { cp = c & 0x07; len = 4; }
+        else { ++i; continue; }
+        for (int j = 1; j < len && i + j < utf8_str.size(); ++j) {
+            cp = (cp << 6) | (static_cast<unsigned char>(utf8_str[i + j]) & 0x3F);
+        }
+        result.push_back(cp);
+        i += len;
+    }
+    return result;
 }
 
 std::string utf32_to_utf8(const std::u32string& utf32_str) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.to_bytes(utf32_str);
+    std::string result;
+    for (char32_t cp : utf32_str) {
+        if (cp < 0x80) {
+            result.push_back(static_cast<char>(cp));
+        } else if (cp < 0x800) {
+            result.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+            result.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else if (cp < 0x10000) {
+            result.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+            result.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            result.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else {
+            result.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+            result.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+            result.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            result.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        }
+    }
+    return result;
 }
 
 std::u32string unicode_value_to_utf32(int unicode_value) {

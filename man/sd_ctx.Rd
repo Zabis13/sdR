@@ -25,7 +25,8 @@ sd_ctx(
   lora_apply_mode = LORA_APPLY_MODE$AUTO,
   flow_shift = 0,
   model_type = "sd1",
-  vram_gb = NULL
+  vram_gb = NULL,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -78,6 +79,9 @@ Default \code{"sd1"}.}
 \item{vram_gb}{Override available VRAM in GB. When set, disables auto-detection
 and uses this value for strategy routing. Default \code{NULL} (auto-detect
 from Vulkan device).}
+
+\item{verbose}{If \code{TRUE}, print model loading progress and sampling
+steps. Default \code{FALSE}.}
 }
 \value{
 An external pointer to the SD context (class "sd_ctx") with

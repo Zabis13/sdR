@@ -3,6 +3,9 @@
 #include <Rcpp.h>
 #include "sd/stable-diffusion.h"
 
+// --- Verbose flag: controls log and progress output ---
+static bool r_sd_verbose = false;
+
 // --- Log callback: route SD log messages to R ---
 static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data) {
     // Remove trailing newline for Rprintf
@@ -12,15 +15,16 @@ static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data
 
     switch (level) {
         case SD_LOG_DEBUG:
-            // suppress debug by default
+            // suppress debug always
             break;
         case SD_LOG_INFO:
-            Rprintf("%s\n", msg.c_str());
+            if (r_sd_verbose) Rprintf("%s\n", msg.c_str());
             break;
         case SD_LOG_WARN:
-            Rprintf("[WARN] %s\n", msg.c_str());
+            if (r_sd_verbose) Rprintf("[WARN] %s\n", msg.c_str());
             break;
         case SD_LOG_ERROR:
+            // errors always printed
             REprintf("[ERROR] %s\n", msg.c_str());
             break;
     }
@@ -28,10 +32,16 @@ static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data
 
 // --- Progress callback: update R console ---
 static void r_sd_progress_callback(int step, int steps, float time, void* data) {
+    if (!r_sd_verbose) return;
     Rprintf("\rStep %d/%d (%.1fs)", step, steps, time);
     if (step == steps) Rprintf("\n");
     R_FlushConsole();
     R_CheckUserInterrupt();
+}
+
+// [[Rcpp::export]]
+void sd_set_verbose(bool verbose) {
+    r_sd_verbose = verbose;
 }
 
 // --- Destructor for XPtr ---

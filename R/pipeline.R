@@ -33,6 +33,8 @@
 #' @param vram_gb Override available VRAM in GB. When set, disables auto-detection
 #'   and uses this value for strategy routing. Default \code{NULL} (auto-detect
 #'   from Vulkan device).
+#' @param verbose If \code{TRUE}, print model loading progress and sampling
+#'   steps. Default \code{FALSE}.
 #' @return An external pointer to the SD context (class "sd_ctx") with
 #'   attributes \code{model_type}, \code{vae_decode_only}, \code{vram_gb},
 #'   \code{vram_total_gb}, and \code{vram_device}.
@@ -63,7 +65,10 @@ sd_ctx <- function(model_path,
                    lora_apply_mode = LORA_APPLY_MODE$AUTO,
                    flow_shift = 0.0,
                    model_type = "sd1",
-                   vram_gb = NULL) {
+                   vram_gb = NULL,
+                   verbose = FALSE) {
+
+  sd_set_verbose(verbose)
 
   if (!file.exists(model_path)) {
     stop("Model file not found: ", model_path, call. = FALSE)

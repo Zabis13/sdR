@@ -9,6 +9,7 @@ src/**/*.o
 src/**/*.so
 src/**/*.dll
 src/Makevars
+src/Makevars.win
 src/sd/vocab.hpp
 src/sd/vocab_mistral.hpp
 src/sd/vocab_qwen.hpp

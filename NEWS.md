@@ -1,3 +1,14 @@
+# sdR 0.1.4
+
+
+## Build System
+* `configure.win` rewritten to use template approach (`Makevars.win.in` →
+  `Makevars.win`), matching `ggmlR` pattern. Resolves `SHLIB_OPENMP_*`
+  macros at configure time instead of in Makevars.
+* `cleanup` / `cleanup.win` scripts updated — remove generated `Makevars`
+  and `Makevars.win` (not tracked in git, only `.in` templates).
+
+
 # sdR 0.1.3
 
 ## Unified `sd_generate()` Entry Point

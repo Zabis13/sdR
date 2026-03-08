@@ -21,7 +21,7 @@ show_image <- function(img, filename) {
 
 # --- 1. Basic 512x512 (direct) ---
 cat("\n--- 1. Basic 512x512 -> direct ---\n")
-ctx <- sd_ctx(model_path, n_threads = 4L, model_type = "sdxl")
+ctx <- sd_ctx(model_path, n_threads = 4L, model_type = "sdxl", verbose = TRUE)
 t0 <- proc.time()
 imgs <- sd_generate(
   ctx,
@@ -40,7 +40,7 @@ rm(ctx); gc()
 
 # --- 2. 1024x1024, forced tiled VAE ---
 cat("\n--- 2. 1024x1024 -> tiled VAE ---\n")
-ctx <- sd_ctx(model_path, n_threads = 4L, model_type = "sdxl")
+ctx <- sd_ctx(model_path, n_threads = 4L, model_type = "sdxl", verbose = TRUE)
 t0 <- proc.time()
 imgs_tiled <- sd_generate(
   ctx,
@@ -61,7 +61,7 @@ rm(ctx); gc()
 # --- 3. 2048x1024 -> auto highres fix ---
 cat("\n--- 3. 2048x1024 -> auto highres fix ---\n")
 ctx <- sd_ctx(model_path, n_threads = 4L, model_type = "sdxl",
-              vae_decode_only = FALSE)
+              vae_decode_only = FALSE, verbose = TRUE)
 t0 <- proc.time()
 imgs_hr <- sd_generate(
   ctx,
@@ -82,7 +82,7 @@ rm(ctx); gc()
 # --- 4. img2img 512x512 (direct) ---
 cat("\n--- 4. img2img 512x512 -> direct ---\n")
 ctx <- sd_ctx(model_path, n_threads = 4L, model_type = "sdxl",
-              vae_decode_only = FALSE)
+              vae_decode_only = FALSE, verbose = TRUE)
 t0 <- proc.time()
 refined <- sd_generate(
   ctx,

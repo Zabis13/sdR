@@ -10,6 +10,16 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// sd_set_verbose
+void sd_set_verbose(bool verbose);
+RcppExport SEXP _sdR_sd_set_verbose(SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    sd_set_verbose(verbose);
+    return R_NilValue;
+END_RCPP
+}
 // sd_init_log
 void sd_init_log();
 RcppExport SEXP _sdR_sd_init_log() {
@@ -161,6 +171,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_sdR_sd_set_verbose", (DL_FUNC) &_sdR_sd_set_verbose, 1},
     {"_sdR_sd_init_log", (DL_FUNC) &_sdR_sd_init_log, 0},
     {"_sdR_sd_create_context", (DL_FUNC) &_sdR_sd_create_context, 1},
     {"_sdR_sd_destroy_context", (DL_FUNC) &_sdR_sd_destroy_context, 1},

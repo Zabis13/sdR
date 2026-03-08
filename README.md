@@ -15,6 +15,7 @@ sdR exposes a high-level R interface for text-to-image and image-to-image genera
 ## Key Features
 
 - **Unified `sd_generate()`** — single entry point for all generation modes. Automatically selects the optimal strategy (direct, tiled sampling, or highres fix) based on output resolution and available VRAM (`vram_gb` parameter in `sd_ctx()`). Users don't need to think about tiling at all.
+- **CRAN-ready defaults**: `verbose = FALSE` by default — no console output unless explicitly enabled. Cross-platform build system with `configure`/`configure.win` generating `Makevars` from templates.
 - **VRAM-aware auto-routing**: estimates VRAM from resolution and routes to direct generation (fits in VRAM), highres fix (txt2img + upscale + tiled img2img, preferred for coherent large images), or tiled sampling (MultiDiffusion fallback). Set `vram_gb` once in `sd_ctx()`.
 - **Multi-GPU**: `sd_generate_multi_gpu()` distributes prompts across Vulkan GPUs via `callr`, one process per GPU, with progress reporting.
 - **Text-to-image** generation supporting Stable Diffusion 1.x models (e.g. SD 1.5) with typical 512x512 generations taking a few seconds on Vulkan-enabled GPUs.
@@ -29,17 +30,16 @@ sdR exposes a high-level R interface for text-to-image and image-to-image genera
 ## Implementation Details
 
 - **Rcpp bindings**: `src/sdR_interface.cpp` defines a thin bridge between R and the C API in `stable-diffusion.h`, returning `XPtr` objects with custom finalizers for correct lifetime management of `sd_ctx_t` and `upscaler_ctx_t`.
-- **Build system**: `src/Makevars` compiles all `sd/*.cpp` sources, links them with `libggml.a`, and includes `r_ggml_compat.h` to stay compatible with the installed ggmlR headers.
+- **Build system**: `configure` / `configure.win` generate `Makevars` from `.in` templates, resolving ggmlR paths, OpenMP, and Vulkan at configure time. Per-target `-include r_ggml_compat.h` applied only to `sd/*.cpp` sources to avoid macro conflicts with system headers.
 - **Package metadata**: `DESCRIPTION` declares Rcpp and ggmlR in `LinkingTo`, and `NAMESPACE` is generated via roxygen2 with `useDynLib` and Rcpp imports.
 - **On load**: `.onLoad()` initializes logging and registers constant values that mirror the underlying C++ enums using 0-based indices.
 
-## Planned CRAN Readiness
+## CRAN Readiness
 
-To meet CRAN size limits and policy requirements, sdR plans to:
-
-- Ship complete Rd documentation and vignettes for common workflows (txt2img, img2img, GPU configuration).
-
-Large tokenizer vocabularies (CLIP, Mistral, Qwen, UMT5) are downloaded automatically during installation from [GitHub Releases](https://github.com/Zabis13/sdR/releases/tag/assets), keeping the source tarball small.
+- `verbose = FALSE` by default — no output unless requested.
+- Per-target compiler flags for cross-platform compatibility (Linux, macOS, Windows).
+- All C++ warnings fixed (`-Winconsistent-missing-override`, deprecated `codecvt`).
+- Large tokenizer vocabularies (CLIP, Mistral, Qwen, UMT5) downloaded automatically during installation from [GitHub Releases](https://github.com/Zabis13/sdR/releases/tag/assets), keeping the source tarball small.
 
 ## Installation
 
