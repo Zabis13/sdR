@@ -66,7 +66,7 @@ std::string sd_format(const char* fmt, ...) {
     va_copy(ap2, ap);
     int size = vsnprintf(nullptr, 0, fmt, ap);
     std::vector<char> buf(size + 1);
-    int size2 = vsnprintf(buf.data(), size + 1, fmt, ap2);
+    vsnprintf(buf.data(), size + 1, fmt, ap2);
     va_end(ap2);
     va_end(ap);
     return std::string(buf.data(), size);
@@ -402,10 +402,10 @@ void pretty_progress(int step, int steps, float time) {
         unit  = "it/s";
     }
 #ifdef GGML_R_PACKAGE
-    printf("\r%s %i/%i - %.2f%s%s", progress.c_str(), step, steps, speed, unit, lf);
+    r_ggml_printf("\r%s %i/%i - %.2f%s%s", progress.c_str(), step, steps, speed, unit, lf);
 #else
-    printf("\r%s %i/%i - %.2f%s\033[K%s", progress.c_str(), step, steps, speed, unit, lf);
-    fflush(stdout);  // for linux
+    r_ggml_printf("\r%s %i/%i - %.2f%s\033[K%s", progress.c_str(), step, steps, speed, unit, lf);
+    r_ggml_fflush(NULL);  // for linux
 #endif
 }
 
@@ -720,7 +720,7 @@ std::vector<std::pair<std::string, float>> parse_prompt_attention(const std::str
     std::regex re_break(R"(\s*\bBREAK\b\s*)");
 
     auto multiply_range = [&](int start_position, float multiplier) {
-        for (int p = start_position; p < res.size(); ++p) {
+        for (size_t p = (size_t)start_position; p < res.size(); ++p) {
             res[p].second *= multiplier;
         }
     };
@@ -771,7 +771,7 @@ std::vector<std::pair<std::string, float>> parse_prompt_attention(const std::str
     }
 
     int i = 0;
-    while (i + 1 < res.size()) {
+    while ((size_t)(i + 1) < res.size()) {
         if (res[i].second == res[i + 1].second) {
             res[i].first += res[i + 1].first;
             res.erase(res.begin() + i + 1);

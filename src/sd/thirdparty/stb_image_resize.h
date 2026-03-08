@@ -86,7 +86,7 @@
 
             static void my_progress_report(float progress)
             {
-               printf("Progress: %f%%\n", progress*100);
+               r_ggml_printf("Progress: %f%%\n", progress*100);
             }
 
       MAX CHANNELS

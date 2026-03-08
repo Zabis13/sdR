@@ -16,7 +16,8 @@ PKG_CPPFLAGS = -Isd -Isd/thirdparty \
   -DGGML_R_PACKAGE \
   $(VULKAN_CPPFLAGS) \
   $(PKG_CPPFLAGS_WIN) \
-  -include $(GGMLR_INCLUDE)/r_ggml_compat.h
+  -I$(GGMLR_INCLUDE) \
+  -include r_ggml_compat_wrap.h
 
 PKG_CXXFLAGS = $(OPENMP_CXXFLAGS)
 PKG_LIBS = -L$(GGMLR_LIB) -lggml $(OPENMP_CXXFLAGS) $(VULKAN_LIBS) -lpthread -lm

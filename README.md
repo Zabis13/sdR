@@ -1,5 +1,7 @@
 # sdR
 
+[![R-hub check on the R Consortium cluster](https://github.com/r-hub2/separate-jaguar-sdR/actions/workflows/rhub-rc.yaml/badge.svg)](https://github.com/r-hub2/separate-jaguar-sdR/actions/workflows/rhub-rc.yaml)
+
 **sdR** is an R package that provides a native, GPU-accelerated Stable Diffusion pipeline by wrapping the C++ implementation from [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) and using [ggmlR](https://github.com/Zabis13/ggmlR) as the tensor backend.
 
 ## Overview

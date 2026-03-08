@@ -981,15 +981,15 @@ struct T5Embedder {
             std::vector<float>& masks   = std::get<2>(tokens_and_weights);
             for (auto token : tokens) {
 #ifdef GGML_R_PACKAGE
-                printf("%d ", token);
+                r_ggml_printf("%d ", token);
 #else
-                printf("%d ", token);
+                r_ggml_printf("%d ", token);
 #endif
             }
 #ifdef GGML_R_PACKAGE
-            printf("\n");
+            r_ggml_printf("\n");
 #else
-            printf("\n");
+            r_ggml_printf("\n");
 #endif
             auto input_ids          = vector_to_ggml_tensor_i32(work_ctx, tokens);
             auto attention_mask     = vector_to_ggml_tensor(work_ctx, masks);

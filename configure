@@ -145,3 +145,11 @@ sed -e "s|@GGMLR_LIB@|${GGMLR_LIB}|g" \
     src/Makevars.in > src/Makevars
 
 echo "* Wrote src/Makevars"
+
+# ---- Patch vendored sd/ sources for R compatibility ----
+# C++ <cstdio> does '#undef printf', so -include r_ggml_compat.h macros
+# don't work for .cpp/.hpp files.  Direct text replacement instead.
+
+if [ -x tools/patch_sd_sources.sh ]; then
+  ./tools/patch_sd_sources.sh src/sd
+fi
