@@ -2906,7 +2906,7 @@ public:
                 };
                 sd_tiling_non_square(x, result, vae_scale_factor, tile_size_x, tile_size_y, tile_overlap, on_tiling);
             } else {
-                // PATCH(sdR): fallback to tiled VAE if direct decode fails (VRAM)
+                // PATCH(sd2R): fallback to tiled VAE if direct decode fails (VRAM)
                 if (!first_stage_model->compute(n_threads, x, true, &result, work_ctx)) {
                     LOG_WARN("VAE direct decode failed, falling back to tiled VAE decode");
                     first_stage_model->free_compute_buffer();
@@ -3808,7 +3808,7 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx, const sd_img_gen_params_t* sd_img_g
         ggml_tensor* init_img = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32, width, height, 3, 1);
         ggml_tensor* mask_img = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32, width, height, 1, 1);
 
-        // PATCH(sdR): create all-white mask if missing or size mismatch
+        // PATCH(sd2R): create all-white mask if missing or size mismatch
         // The mask tensor uses the final aligned width x height, which may
         // differ from the caller-provided mask_image dimensions.
         // 255 = white = keep everything (correct default for img2img without inpainting).
@@ -3825,7 +3825,7 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx, const sd_img_gen_params_t* sd_img_g
         }
         sd_image_to_ggml_tensor(mask_image_used, mask_img);
 
-        // PATCH(sdR): pad init_image with edge-repeat if size mismatches aligned width x height
+        // PATCH(sd2R): pad init_image with edge-repeat if size mismatches aligned width x height
         sd_image_t init_image_used = sd_img_gen_params->init_image;
         std::vector<uint8_t> padded_init;
         if ((int)init_image_used.width != width || (int)init_image_used.height != height) {

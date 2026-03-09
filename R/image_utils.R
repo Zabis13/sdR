@@ -1,4 +1,4 @@
-# Image utility functions for sdR
+# Image utility functions for sd2R
 # C++ sd_image_t uses row-major RGB interleaved: byte[y*w*ch + x*ch + c]
 # R arrays are column-major [H, W, C]: element[h, w, c]
 # Conversion requires aperm to reorder dimensions.

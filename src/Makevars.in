@@ -29,7 +29,7 @@ SD_OBJECTS = \
   sd/version.o \
   sd/thirdparty/zip.o
 
-R_INTERFACE_OBJECTS = RcppExports.o sdR_interface.o
+R_INTERFACE_OBJECTS = RcppExports.o sd2R_interface.o
 
 OBJECTS = $(R_INTERFACE_OBJECTS) $(SD_OBJECTS)
 

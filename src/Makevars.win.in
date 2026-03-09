@@ -30,15 +30,13 @@ SD_OBJECTS = \
   sd/version.o \
   sd/thirdparty/zip.o
 
-R_INTERFACE_OBJECTS = RcppExports.o sdR_interface.o
+R_INTERFACE_OBJECTS = RcppExports.o sd2R_interface.o
 
 OBJECTS = $(R_INTERFACE_OBJECTS) $(SD_OBJECTS)
 
-# Force-include r_ggml_compat_wrap.h only for sd/ objects (not Rcpp files).
-# On Windows (Cygwin g++ + MinGW headers), r_ggml_compat.h includes <stdarg.h>
-# which pulls MinGW _mingw_stdarg.h before Cygwin C++ headers, causing conflicts.
-# Rcpp files don't need stdio redirections — they use R API directly.
-SD_COMPAT_FLAGS = -I$(GGMLR_INCLUDE) -include r_ggml_compat_wrap.h
+# Force-include r_ggml_compat.h only for sd/ objects (not Rcpp files).
+# Rcpp files use R API directly and don't need stdio redirections.
+SD_COMPAT_FLAGS = -include $(GGMLR_INCLUDE)/r_ggml_compat.h
 
 sd/stable-diffusion.o: PKG_CPPFLAGS += $(SD_COMPAT_FLAGS)
 sd/model.o: PKG_CPPFLAGS += $(SD_COMPAT_FLAGS)

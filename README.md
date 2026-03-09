@@ -1,14 +1,20 @@
-# sdR
+# sd2R
 
-[![R-hub check on the R Consortium cluster](https://github.com/r-hub2/separate-jaguar-sdR/actions/workflows/rhub-rc.yaml/badge.svg)](https://github.com/r-hub2/separate-jaguar-sdR/actions/workflows/rhub-rc.yaml)
+[![R-hub check on the R Consortium cluster](https://github.com/r-hub2/separate-jaguar-sd2R/actions/workflows/rhub-rc.yaml/badge.svg)](https://github.com/r-hub2/separate-jaguar-sd2R/actions/workflows/rhub-rc.yaml)
 
-**sdR** is an R package that provides a native, GPU-accelerated Stable Diffusion pipeline by wrapping the C++ implementation from [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) and using [ggmlR](https://github.com/Zabis13/ggmlR) as the tensor backend.
+**sd2R** is an R package that provides a native, GPU-accelerated Stable Diffusion pipeline by wrapping the C++ implementation from [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) and using [ggmlR](https://github.com/Zabis13/ggmlR) as the tensor backend.
 
 ## Overview
 
-sdR exposes a high-level R interface for text-to-image and image-to-image generation, while all heavy computation (tokenization, encoders, denoiser, sampler, VAE, model loading) is implemented in C++. Supports SD 1.x, SD 2.x, SDXL, and Flux model families. Targets local inference on Linux with Vulkan-enabled AMD GPUs (with automatic CPU fallback via ggml), without relying on external Python or web APIs.
+sd2R exposes a high-level R interface for text-to-image and image-to-image generation, while all heavy computation (tokenization, encoders, denoiser, sampler, VAE, model loading) is implemented in C++. Supports SD 1.x, SD 2.x, SDXL, and Flux model families. Targets local inference on Linux with Vulkan-enabled AMD GPUs (with automatic CPU fallback via ggml), without relying on external Python or web APIs.
 
 ## Architecture
+
+Flux without Python:
+
+```
+R  →  sd2R  →  ggmlR  →  ggml  →  Vulkan  →  GPU
+```
 
 - **C++ core** (`src/sd/`): tokenizers, text encoders (CLIP, Mistral, Qwen, UMT5), diffusion UNet/MMDiT denoiser, samplers, VAE encoder/decoder, and model loading for `.safetensors` and `.gguf` weights.
 - **R layer**: user-facing pipeline functions, parameter validation, image helpers, testing, and documentation-friendly API.
@@ -31,7 +37,7 @@ sdR exposes a high-level R interface for text-to-image and image-to-image genera
 
 ## Implementation Details
 
-- **Rcpp bindings**: `src/sdR_interface.cpp` defines a thin bridge between R and the C API in `stable-diffusion.h`, returning `XPtr` objects with custom finalizers for correct lifetime management of `sd_ctx_t` and `upscaler_ctx_t`.
+- **Rcpp bindings**: `src/sd2R_interface.cpp` defines a thin bridge between R and the C API in `stable-diffusion.h`, returning `XPtr` objects with custom finalizers for correct lifetime management of `sd_ctx_t` and `upscaler_ctx_t`.
 - **Build system**: `configure` / `configure.win` generate `Makevars` from `.in` templates, resolving ggmlR paths, OpenMP, and Vulkan at configure time. Per-target `-include r_ggml_compat.h` applied only to `sd/*.cpp` sources to avoid macro conflicts with system headers.
 - **Package metadata**: `DESCRIPTION` declares Rcpp and ggmlR in `LinkingTo`, and `NAMESPACE` is generated via roxygen2 with `useDynLib` and Rcpp imports.
 - **On load**: `.onLoad()` initializes logging and registers constant values that mirror the underlying C++ enums using 0-based indices.
@@ -41,7 +47,7 @@ sdR exposes a high-level R interface for text-to-image and image-to-image genera
 - `verbose = FALSE` by default — no output unless requested.
 - Per-target compiler flags for cross-platform compatibility (Linux, macOS, Windows).
 - All C++ warnings fixed (`-Winconsistent-missing-override`, deprecated `codecvt`).
-- Large tokenizer vocabularies (CLIP, Mistral, Qwen, UMT5) downloaded automatically during installation from [GitHub Releases](https://github.com/Zabis13/sdR/releases/tag/assets), keeping the source tarball small.
+- Large tokenizer vocabularies (CLIP, Mistral, Qwen, UMT5) downloaded automatically during installation from [GitHub Releases](https://github.com/Zabis13/sd2R/releases/tag/assets), keeping the source tarball small.
 
 ## Installation
 
@@ -49,8 +55,8 @@ sdR exposes a high-level R interface for text-to-image and image-to-image genera
 # Install ggmlR first (if not already installed)
 remotes::install_github("Zabis13/ggmlR")
 
-# Install sdR
-remotes::install_github("Zabis13/sdR")
+# Install sd2R
+remotes::install_github("Zabis13/sd2R")
 ```
 
 During installation, the `configure` script automatically downloads tokenizer vocabulary files (~128 MB total) from GitHub Releases. This requires `curl` or `wget`.
@@ -60,13 +66,13 @@ During installation, the `configure` script automatically downloads tokenizer vo
 If you don't have internet access during installation, download the vocabulary files manually and place them into `src/sd/` before building:
 
 ```sh
-# Download from https://github.com/Zabis13/sdR/releases/tag/assets
+# Download from https://github.com/Zabis13/sd2R/releases/tag/assets
 # Files: vocab.hpp, vocab_mistral.hpp, vocab_qwen.hpp, vocab_umt5.hpp
 
-wget https://github.com/Zabis13/sdR/releases/download/assets/vocab.hpp -P src/sd/
-wget https://github.com/Zabis13/sdR/releases/download/assets/vocab_mistral.hpp -P src/sd/
-wget https://github.com/Zabis13/sdR/releases/download/assets/vocab_qwen.hpp -P src/sd/
-wget https://github.com/Zabis13/sdR/releases/download/assets/vocab_umt5.hpp -P src/sd/
+wget https://github.com/Zabis13/sd2R/releases/download/assets/vocab.hpp -P src/sd/
+wget https://github.com/Zabis13/sd2R/releases/download/assets/vocab_mistral.hpp -P src/sd/
+wget https://github.com/Zabis13/sd2R/releases/download/assets/vocab_qwen.hpp -P src/sd/
+wget https://github.com/Zabis13/sd2R/releases/download/assets/vocab_umt5.hpp -P src/sd/
 
 R CMD INSTALL .
 ```
@@ -78,10 +84,27 @@ R CMD INSTALL .
 - **Optional GPU**: `libvulkan-dev` + `glslc` (Linux) or Vulkan SDK (Windows)
 - Platforms: Linux, macOS, Windows (x86-64, ARM64)
 
+## Benchmarks
+
+FLUX.1-dev Q4_K_S with CLIP-L, T5-XXL text encoders, and VAE. `sample_steps = 10`.
+
+| Test | AMD RX 9070 (16 GB) | Tesla P100 (16 GB) | 2x Tesla T4 (16 GB) |
+|---|---|---|---|
+| 1. 768x768 direct | 44.2 s | 94.0 s | 133.1 s |
+| 2. 1024x1024 tiled VAE | 163.6 s | 151.4 s | 243.6 s |
+| 3. 2048x1024 highres fix | 309.7 s | 312.5 s | 492.2 s |
+| 4. img2img 768x768 direct | 29.6 s | 51.0 s | 73.5 s |
+| 5. 1024x1024 direct | 163.0 s | 152.2 s | 243.3 s |
+| 6. Multi-GPU 4 prompts | -- | -- | 284.9 s (4 img) |
+
+## Examples
+
+For a live, runnable demo see the [Kaggle notebook: Stable Diffusion in R (ggmlR + Vulkan GPU)](https://www.kaggle.com/code/lbsbmsu/stable-diffusion-in-r-ggmlr-vulkan-gpu).
+
 ## See Also
 
 - [llamaR](https://github.com/Zabis13/llamaR) — LLM inference in R
-- [sdR](https://github.com/Zabis13/sdR) — Stable Diffusion in R
+- [sd2R](https://github.com/Zabis13/sd2R) — Stable Diffusion in R
 - [ggml](https://github.com/ggml-org/ggml) — underlying C library
 
 ## License

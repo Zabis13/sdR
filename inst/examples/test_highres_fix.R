@@ -1,4 +1,4 @@
-library(sdR)
+library(sd2R)
 
 cat("=== Highres Fix Test ===\n\n")
 

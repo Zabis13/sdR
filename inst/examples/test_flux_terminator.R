@@ -1,4 +1,4 @@
-library(sdR)
+library(sd2R)
 
 models_dir <- "/mnt/Data2/DS_projects/sd_models"
 

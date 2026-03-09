@@ -1,4 +1,4 @@
-# sdR package initialization and constants
+# sd2R package initialization and constants
 
 #' @importFrom Rcpp sourceCpp
 NULL

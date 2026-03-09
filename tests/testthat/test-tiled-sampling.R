@@ -13,11 +13,11 @@ test_that("sd_txt2img_tiled has correct signature", {
 })
 
 test_that(".native_latent_tile_size returns correct values", {
-  expect_equal(sdR:::.native_latent_tile_size("sd1"), 64L)
-  expect_equal(sdR:::.native_latent_tile_size("sd2"), 64L)
-  expect_equal(sdR:::.native_latent_tile_size("sdxl"), 128L)
-  expect_equal(sdR:::.native_latent_tile_size("flux"), 128L)
-  expect_equal(sdR:::.native_latent_tile_size("sd3"), 128L)
+  expect_equal(sd2R:::.native_latent_tile_size("sd1"), 64L)
+  expect_equal(sd2R:::.native_latent_tile_size("sd2"), 64L)
+  expect_equal(sd2R:::.native_latent_tile_size("sdxl"), 128L)
+  expect_equal(sd2R:::.native_latent_tile_size("flux"), 128L)
+  expect_equal(sd2R:::.native_latent_tile_size("sd3"), 128L)
 })
 
 test_that("sd_txt2img_tiled auto-detects tile size from context", {

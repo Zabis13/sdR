@@ -1322,7 +1322,7 @@ sd_generate_multi_gpu <- function(model_path = NULL,
                  t5xxl_path, prompt, negative_prompt, width, height, seed,
                  model_type, vram_gb, vae_decode_only, dev, extra_args) {
           Sys.setenv(SD_VK_DEVICE = as.character(dev))
-          library(sdR)
+          library(sd2R)
           ctx <- sd_ctx(model_path = model_path,
                         diffusion_model_path = diffusion_model_path,
                         vae_path = vae_path,

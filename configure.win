@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Configure script for sdR (Windows/Rtools)
+# Configure script for sd2R (Windows/Rtools)
 # 1. Download vocabulary header files
 # 2. Resolve ggmlR paths
 # 3. Resolve OpenMP flags from R's Makeconf
@@ -9,7 +9,7 @@
 
 # ---- Download vocabulary files from GitHub Releases ----
 
-VOCAB_BASE_URL="https://github.com/Zabis13/sdR/releases/download/assets"
+VOCAB_BASE_URL="https://github.com/Zabis13/sd2R/releases/download/assets"
 VOCAB_DIR="src/sd"
 VOCAB_FILES="vocab.hpp vocab_mistral.hpp vocab_qwen.hpp vocab_umt5.hpp"
 DOWNLOAD_FAILED=0

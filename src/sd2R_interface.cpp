@@ -1,5 +1,3 @@
-#define R_GGML_IO_IMPL  // disable r_ggml_compat.h macros (we use R API directly)
-
 #include <Rcpp.h>
 #include "sd/stable-diffusion.h"
 
@@ -44,18 +42,11 @@ void sd_set_verbose(bool verbose) {
     r_sd_verbose = verbose;
 }
 
-// --- Destructor for XPtr ---
-static void sd_ctx_destructor(sd_ctx_t* ctx) {
-    if (ctx) {
-        free_sd_ctx(ctx);
-    }
-}
-
-static void upscaler_ctx_destructor(upscaler_ctx_t* ctx) {
-    if (ctx) {
-        free_upscaler_ctx(ctx);
-    }
-}
+// --- Custom deleters for XPtr (avoids delete-incomplete warning) ---
+inline void sd_ctx_invoke_free(sd_ctx_t* ctx) { if (ctx) free_sd_ctx(ctx); }
+inline void upscaler_ctx_invoke_free(upscaler_ctx_t* ctx) { if (ctx) free_upscaler_ctx(ctx); }
+typedef Rcpp::XPtr<sd_ctx_t, Rcpp::PreserveStorage, sd_ctx_invoke_free> SdCtxXPtr;
+typedef Rcpp::XPtr<upscaler_ctx_t, Rcpp::PreserveStorage, upscaler_ctx_invoke_free> UpscalerCtxXPtr;
 
 // [[Rcpp::export]]
 void sd_init_log() {
@@ -141,18 +132,14 @@ SEXP sd_create_context(Rcpp::List params) {
         Rcpp::stop("Failed to create stable diffusion context");
     }
 
-    Rcpp::XPtr<sd_ctx_t> xptr(ctx, false);
-    R_RegisterCFinalizerEx(xptr, [](SEXP p) {
-        sd_ctx_t* c = (sd_ctx_t*)R_ExternalPtrAddr(p);
-        if (c) { free_sd_ctx(c); R_ClearExternalPtr(p); }
-    }, TRUE);
+    SdCtxXPtr xptr(ctx, true);
     xptr.attr("class") = "sd_ctx";
     return xptr;
 }
 
 // [[Rcpp::export]]
 void sd_destroy_context(SEXP ctx_sexp) {
-    Rcpp::XPtr<sd_ctx_t> xptr(ctx_sexp);
+    SdCtxXPtr xptr(ctx_sexp);
     if (xptr.get()) {
         free_sd_ctx(xptr.get());
         xptr.release();
@@ -187,7 +174,7 @@ static sd_image_t r_to_sd_image(Rcpp::List img_list) {
 
 // [[Rcpp::export]]
 Rcpp::List sd_generate_image(SEXP ctx_sexp, Rcpp::List params) {
-    Rcpp::XPtr<sd_ctx_t> xptr(ctx_sexp);
+    SdCtxXPtr xptr(ctx_sexp);
     if (!xptr.get()) {
         Rcpp::stop("Invalid sd_ctx (NULL pointer)");
     }
@@ -335,18 +322,14 @@ SEXP sd_create_upscaler(std::string esrgan_path, int n_threads = 0,
     if (!ctx) {
         Rcpp::stop("Failed to create upscaler context");
     }
-    Rcpp::XPtr<upscaler_ctx_t> xptr(ctx, false);
-    R_RegisterCFinalizerEx(xptr, [](SEXP p) {
-        upscaler_ctx_t* c = (upscaler_ctx_t*)R_ExternalPtrAddr(p);
-        if (c) { free_upscaler_ctx(c); R_ClearExternalPtr(p); }
-    }, TRUE);
+    UpscalerCtxXPtr xptr(ctx, true);
     xptr.attr("class") = "upscaler_ctx";
     return xptr;
 }
 
 // [[Rcpp::export]]
 Rcpp::List sd_upscale(SEXP upscaler_sexp, Rcpp::List image, int upscale_factor) {
-    Rcpp::XPtr<upscaler_ctx_t> xptr(upscaler_sexp);
+    UpscalerCtxXPtr xptr(upscaler_sexp);
     if (!xptr.get()) {
         Rcpp::stop("Invalid upscaler_ctx (NULL pointer)");
     }

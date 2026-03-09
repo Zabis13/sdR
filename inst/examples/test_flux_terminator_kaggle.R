@@ -1,4 +1,4 @@
-library(sdR)
+library(sd2R)
 library(png)
 library(grid)
 

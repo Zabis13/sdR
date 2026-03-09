@@ -1,11 +1,11 @@
 test_that("package loads", {
-  expect_true(requireNamespace("sdR", quietly = TRUE))
+  expect_true(requireNamespace("sd2R", quietly = TRUE))
 })
 
 test_that("sd_system_info works", {
   info <- sd_system_info()
   expect_s3_class(info, "sd_system_info")
-  expect_true(nchar(info$sdR_version) > 0)
+  expect_true(nchar(info$sd2R_version) > 0)
   expect_true(info$num_cores > 0)
 })
 

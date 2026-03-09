@@ -1,4 +1,4 @@
-# Utility functions for sdR
+# Utility functions for sd2R
 
 #' Get system information
 #'
@@ -8,7 +8,7 @@
 #' @export
 sd_system_info <- function() {
   info <- list(
-    sdR_version = as.character(utils::packageVersion("sdR")),
+    sd2R_version = as.character(utils::packageVersion("sd2R")),
     sd_cpp_version = sd_version_cpp(),
     system_info = sd_system_info_cpp(),
     num_cores = sd_num_physical_cores_cpp(),
@@ -31,8 +31,8 @@ sd_vulkan_device_count <- function() {
 
 #' @export
 print.sd_system_info <- function(x, ...) {
-  cat("sdR System Information\n")
-  cat("  sdR version:    ", x$sdR_version, "\n")
+  cat("sd2R System Information\n")
+  cat("  sd2R version:   ", x$sd2R_version, "\n")
   cat("  sd.cpp version: ", x$sd_cpp_version, "\n")
   cat("  Physical cores: ", x$num_cores, "\n")
   cat("  Backend info:   ", x$system_info, "\n")

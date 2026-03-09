@@ -1,6 +1,6 @@
-library(sdR)
+library(sd2R)
 
-cat("=== sdR sd_generate() Test ===\n\n")
+cat("=== sd2R sd_generate() Test ===\n\n")
 print(sd_system_info())
 
 model_path <- "/mnt/Data2/DS_projects/sd_models/v1-5-pruned-emaonly.safetensors"
@@ -21,8 +21,8 @@ imgs <- sd_generate(
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
             length(imgs), imgs[[1]]$width, imgs[[1]]$height, elapsed))
-sd_save_image(imgs[[1]], "/tmp/sdR_gen_512.png")
-cat("Saved: /tmp/sdR_gen_512.png\n")
+sd_save_image(imgs[[1]], "/tmp/sd2R_gen_512.png")
+cat("Saved: /tmp/sd2R_gen_512.png\n")
 rm(ctx); gc()
 
 # --- 2. 1024x1024, forced tiled VAE ---
@@ -42,8 +42,8 @@ imgs_tiled <- sd_generate(
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
             length(imgs_tiled), imgs_tiled[[1]]$width, imgs_tiled[[1]]$height, elapsed))
-sd_save_image(imgs_tiled[[1]], "/tmp/sdR_gen_tiled_1k.png")
-cat("Saved: /tmp/sdR_gen_tiled_1k.png\n")
+sd_save_image(imgs_tiled[[1]], "/tmp/sd2R_gen_tiled_1k.png")
+cat("Saved: /tmp/sd2R_gen_tiled_1k.png\n")
 rm(ctx); gc()
 
 # --- 3. 2048x1024 -> auto highres fix (vae_decode_only=FALSE) ---
@@ -64,8 +64,8 @@ imgs_hr <- sd_generate(
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
             length(imgs_hr), imgs_hr[[1]]$width, imgs_hr[[1]]$height, elapsed))
-sd_save_image(imgs_hr[[1]], "/tmp/sdR_gen_highres_panorama.png")
-cat("Saved: /tmp/sdR_gen_highres_panorama.png\n")
+sd_save_image(imgs_hr[[1]], "/tmp/sd2R_gen_highres_panorama.png")
+cat("Saved: /tmp/sd2R_gen_highres_panorama.png\n")
 rm(ctx); gc()
 
 # --- 4. img2img 512x512 (direct) ---
@@ -86,8 +86,8 @@ refined <- sd_generate(
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
             length(refined), refined[[1]]$width, refined[[1]]$height, elapsed))
-sd_save_image(refined[[1]], "/tmp/sdR_gen_img2img.png")
-cat("Saved: /tmp/sdR_gen_img2img.png\n")
+sd_save_image(refined[[1]], "/tmp/sd2R_gen_img2img.png")
+cat("Saved: /tmp/sd2R_gen_img2img.png\n")
 
 # --- 5. 1024x1024 -> direct (auto-routed) ---
 cat("\n--- 5. 1024x1024 -> direct ---\n")
@@ -104,8 +104,8 @@ imgs_1k <- sd_generate(
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
             length(imgs_1k), imgs_1k[[1]]$width, imgs_1k[[1]]$height, elapsed))
-sd_save_image(imgs_1k[[1]], "/tmp/sdR_gen_direct_1k.png")
-cat("Saved: /tmp/sdR_gen_direct_1k.png\n")
+sd_save_image(imgs_1k[[1]], "/tmp/sd2R_gen_direct_1k.png")
+cat("Saved: /tmp/sd2R_gen_direct_1k.png\n")
 
 # Cleanup
 rm(ctx, imgs, imgs_tiled, imgs_hr, refined, imgs_1k)

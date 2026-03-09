@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // sd_set_verbose
 void sd_set_verbose(bool verbose);
-RcppExport SEXP _sdR_sd_set_verbose(SEXP verboseSEXP) {
+RcppExport SEXP _sd2R_sd_set_verbose(SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
@@ -22,7 +22,7 @@ END_RCPP
 }
 // sd_init_log
 void sd_init_log();
-RcppExport SEXP _sdR_sd_init_log() {
+RcppExport SEXP _sd2R_sd_init_log() {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     sd_init_log();
@@ -31,7 +31,7 @@ END_RCPP
 }
 // sd_create_context
 SEXP sd_create_context(Rcpp::List params);
-RcppExport SEXP _sdR_sd_create_context(SEXP paramsSEXP) {
+RcppExport SEXP _sd2R_sd_create_context(SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -42,7 +42,7 @@ END_RCPP
 }
 // sd_destroy_context
 void sd_destroy_context(SEXP ctx_sexp);
-RcppExport SEXP _sdR_sd_destroy_context(SEXP ctx_sexpSEXP) {
+RcppExport SEXP _sd2R_sd_destroy_context(SEXP ctx_sexpSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type ctx_sexp(ctx_sexpSEXP);
@@ -52,7 +52,7 @@ END_RCPP
 }
 // sd_generate_image
 Rcpp::List sd_generate_image(SEXP ctx_sexp, Rcpp::List params);
-RcppExport SEXP _sdR_sd_generate_image(SEXP ctx_sexpSEXP, SEXP paramsSEXP) {
+RcppExport SEXP _sd2R_sd_generate_image(SEXP ctx_sexpSEXP, SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -64,7 +64,7 @@ END_RCPP
 }
 // sd_system_info_cpp
 std::string sd_system_info_cpp();
-RcppExport SEXP _sdR_sd_system_info_cpp() {
+RcppExport SEXP _sd2R_sd_system_info_cpp() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -74,7 +74,7 @@ END_RCPP
 }
 // sd_version_cpp
 std::string sd_version_cpp();
-RcppExport SEXP _sdR_sd_version_cpp() {
+RcppExport SEXP _sd2R_sd_version_cpp() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -84,7 +84,7 @@ END_RCPP
 }
 // sd_num_physical_cores_cpp
 int sd_num_physical_cores_cpp();
-RcppExport SEXP _sdR_sd_num_physical_cores_cpp() {
+RcppExport SEXP _sd2R_sd_num_physical_cores_cpp() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -94,7 +94,7 @@ END_RCPP
 }
 // sd_type_name_cpp
 std::string sd_type_name_cpp(int type);
-RcppExport SEXP _sdR_sd_type_name_cpp(SEXP typeSEXP) {
+RcppExport SEXP _sd2R_sd_type_name_cpp(SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -105,7 +105,7 @@ END_RCPP
 }
 // sd_sample_method_name_cpp
 std::string sd_sample_method_name_cpp(int method);
-RcppExport SEXP _sdR_sd_sample_method_name_cpp(SEXP methodSEXP) {
+RcppExport SEXP _sd2R_sd_sample_method_name_cpp(SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -116,7 +116,7 @@ END_RCPP
 }
 // sd_scheduler_name_cpp
 std::string sd_scheduler_name_cpp(int sched);
-RcppExport SEXP _sdR_sd_scheduler_name_cpp(SEXP schedSEXP) {
+RcppExport SEXP _sd2R_sd_scheduler_name_cpp(SEXP schedSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -127,7 +127,7 @@ END_RCPP
 }
 // sd_create_upscaler
 SEXP sd_create_upscaler(std::string esrgan_path, int n_threads, bool offload_params_to_cpu, bool direct, int tile_size);
-RcppExport SEXP _sdR_sd_create_upscaler(SEXP esrgan_pathSEXP, SEXP n_threadsSEXP, SEXP offload_params_to_cpuSEXP, SEXP directSEXP, SEXP tile_sizeSEXP) {
+RcppExport SEXP _sd2R_sd_create_upscaler(SEXP esrgan_pathSEXP, SEXP n_threadsSEXP, SEXP offload_params_to_cpuSEXP, SEXP directSEXP, SEXP tile_sizeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -142,7 +142,7 @@ END_RCPP
 }
 // sd_upscale
 Rcpp::List sd_upscale(SEXP upscaler_sexp, Rcpp::List image, int upscale_factor);
-RcppExport SEXP _sdR_sd_upscale(SEXP upscaler_sexpSEXP, SEXP imageSEXP, SEXP upscale_factorSEXP) {
+RcppExport SEXP _sd2R_sd_upscale(SEXP upscaler_sexpSEXP, SEXP imageSEXP, SEXP upscale_factorSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -155,7 +155,7 @@ END_RCPP
 }
 // sd_convert_model
 bool sd_convert_model(std::string input_path, std::string output_path, int output_type, std::string vae_path, std::string tensor_type_rules, bool convert_name);
-RcppExport SEXP _sdR_sd_convert_model(SEXP input_pathSEXP, SEXP output_pathSEXP, SEXP output_typeSEXP, SEXP vae_pathSEXP, SEXP tensor_type_rulesSEXP, SEXP convert_nameSEXP) {
+RcppExport SEXP _sd2R_sd_convert_model(SEXP input_pathSEXP, SEXP output_pathSEXP, SEXP output_typeSEXP, SEXP vae_pathSEXP, SEXP tensor_type_rulesSEXP, SEXP convert_nameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -171,24 +171,24 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_sdR_sd_set_verbose", (DL_FUNC) &_sdR_sd_set_verbose, 1},
-    {"_sdR_sd_init_log", (DL_FUNC) &_sdR_sd_init_log, 0},
-    {"_sdR_sd_create_context", (DL_FUNC) &_sdR_sd_create_context, 1},
-    {"_sdR_sd_destroy_context", (DL_FUNC) &_sdR_sd_destroy_context, 1},
-    {"_sdR_sd_generate_image", (DL_FUNC) &_sdR_sd_generate_image, 2},
-    {"_sdR_sd_system_info_cpp", (DL_FUNC) &_sdR_sd_system_info_cpp, 0},
-    {"_sdR_sd_version_cpp", (DL_FUNC) &_sdR_sd_version_cpp, 0},
-    {"_sdR_sd_num_physical_cores_cpp", (DL_FUNC) &_sdR_sd_num_physical_cores_cpp, 0},
-    {"_sdR_sd_type_name_cpp", (DL_FUNC) &_sdR_sd_type_name_cpp, 1},
-    {"_sdR_sd_sample_method_name_cpp", (DL_FUNC) &_sdR_sd_sample_method_name_cpp, 1},
-    {"_sdR_sd_scheduler_name_cpp", (DL_FUNC) &_sdR_sd_scheduler_name_cpp, 1},
-    {"_sdR_sd_create_upscaler", (DL_FUNC) &_sdR_sd_create_upscaler, 5},
-    {"_sdR_sd_upscale", (DL_FUNC) &_sdR_sd_upscale, 3},
-    {"_sdR_sd_convert_model", (DL_FUNC) &_sdR_sd_convert_model, 6},
+    {"_sd2R_sd_set_verbose", (DL_FUNC) &_sd2R_sd_set_verbose, 1},
+    {"_sd2R_sd_init_log", (DL_FUNC) &_sd2R_sd_init_log, 0},
+    {"_sd2R_sd_create_context", (DL_FUNC) &_sd2R_sd_create_context, 1},
+    {"_sd2R_sd_destroy_context", (DL_FUNC) &_sd2R_sd_destroy_context, 1},
+    {"_sd2R_sd_generate_image", (DL_FUNC) &_sd2R_sd_generate_image, 2},
+    {"_sd2R_sd_system_info_cpp", (DL_FUNC) &_sd2R_sd_system_info_cpp, 0},
+    {"_sd2R_sd_version_cpp", (DL_FUNC) &_sd2R_sd_version_cpp, 0},
+    {"_sd2R_sd_num_physical_cores_cpp", (DL_FUNC) &_sd2R_sd_num_physical_cores_cpp, 0},
+    {"_sd2R_sd_type_name_cpp", (DL_FUNC) &_sd2R_sd_type_name_cpp, 1},
+    {"_sd2R_sd_sample_method_name_cpp", (DL_FUNC) &_sd2R_sd_sample_method_name_cpp, 1},
+    {"_sd2R_sd_scheduler_name_cpp", (DL_FUNC) &_sd2R_sd_scheduler_name_cpp, 1},
+    {"_sd2R_sd_create_upscaler", (DL_FUNC) &_sd2R_sd_create_upscaler, 5},
+    {"_sd2R_sd_upscale", (DL_FUNC) &_sd2R_sd_upscale, 3},
+    {"_sd2R_sd_convert_model", (DL_FUNC) &_sd2R_sd_convert_model, 6},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_sdR(DllInfo *dll) {
+RcppExport void R_init_sd2R(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

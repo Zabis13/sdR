@@ -1,4 +1,4 @@
-library(sdR)
+library(sd2R)
 library(ggmlR)
 
 cat("=== Multi-GPU Debug Test ===\n\n")

@@ -104,9 +104,9 @@ sed -i \
 # caller may provide mask_image with different (or zero) dimensions.
 # Patch: create all-white mask if missing or size mismatch.
 SDCPP="$SD_DIR/stable-diffusion.cpp"
-if ! grep -q 'PATCH(sdR): create all-white mask' "$SDCPP" 2>/dev/null; then
+if ! grep -q 'PATCH(sd2R): create all-white mask' "$SDCPP" 2>/dev/null; then
   sed -i '/sd_image_to_ggml_tensor(sd_img_gen_params->mask_image, mask_img);/{
-    i\        // PATCH(sdR): create all-white mask if missing or size mismatch\
+    i\        // PATCH(sd2R): create all-white mask if missing or size mismatch\
         // The mask tensor uses the final aligned width x height, which may\
         // differ from the caller-provided mask_image dimensions.\
         // 255 = white = keep everything (correct default for img2img without inpainting).\

@@ -1,4 +1,4 @@
-# sdR 0.1.5
+# sd2R 0.1.5
 
 ## Flux Support
 * Flux model family (flux1-dev, etc.) fully supported: text-to-image,
@@ -13,7 +13,7 @@
 
 ---
 
-# sdR 0.1.4
+# sd2R 0.1.4
 
 ## Build System
 * `configure.win` rewritten to use template approach (`Makevars.win.in` →
@@ -21,7 +21,7 @@
 
 ---
 
-# sdR 0.1.3
+# sd2R 0.1.3
 
 ## Unified `sd_generate()` Entry Point
 * New `sd_generate()` — single function for all generation modes. Automatically
@@ -39,7 +39,7 @@
 
 ---
 
-# sdR 0.1.2
+# sd2R 0.1.2
 
 ## Highres Fix
 * New `sd_highres_fix()` — classic two-pass highres pipeline:
@@ -52,7 +52,7 @@
 
 ---
 
-# sdR 0.1.1
+# sd2R 0.1.1
 
 ## VAE Tiling
 * New `vae_mode` parameter: `"normal"`, `"tiled"`, `"auto"` (default).
@@ -70,7 +70,7 @@
 
 ---
 
-# sdR 0.1.0
+# sd2R 0.1.0
 
 ## Core
 * Text-to-image generation via stable-diffusion.cpp (C++ backend).

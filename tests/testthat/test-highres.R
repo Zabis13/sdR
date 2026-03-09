@@ -1,15 +1,15 @@
 # Tests for high-res patch-based pipeline helpers
 
 test_that(".native_tile_size returns correct values", {
-  expect_equal(sdR:::.native_tile_size("sd1"), 512L)
-  expect_equal(sdR:::.native_tile_size("sd2"), 512L)
-  expect_equal(sdR:::.native_tile_size("sdxl"), 1024L)
-  expect_equal(sdR:::.native_tile_size("flux"), 1024L)
-  expect_equal(sdR:::.native_tile_size("sd3"), 1024L)
+  expect_equal(sd2R:::.native_tile_size("sd1"), 512L)
+  expect_equal(sd2R:::.native_tile_size("sd2"), 512L)
+  expect_equal(sd2R:::.native_tile_size("sdxl"), 1024L)
+  expect_equal(sd2R:::.native_tile_size("flux"), 1024L)
+  expect_equal(sd2R:::.native_tile_size("sd3"), 1024L)
 })
 
 test_that(".compute_patch_grid covers the full canvas", {
-  grid <- sdR:::.compute_patch_grid(2048, 2048, 512, 64)
+  grid <- sd2R:::.compute_patch_grid(2048, 2048, 512, 64)
 
   # Every pixel must be covered by at least one patch
   covered_x <- logical(2048)
@@ -25,14 +25,14 @@ test_that(".compute_patch_grid covers the full canvas", {
 })
 
 test_that(".compute_patch_grid single tile when image fits", {
-  grid <- sdR:::.compute_patch_grid(512, 512, 512, 64)
+  grid <- sd2R:::.compute_patch_grid(512, 512, 512, 64)
   expect_equal(nrow(grid), 1L)
   expect_equal(grid$x[1], 0L)
   expect_equal(grid$y[1], 0L)
 })
 
 test_that(".compute_patch_grid non-square image", {
-  grid <- sdR:::.compute_patch_grid(2048, 512, 512, 64)
+  grid <- sd2R:::.compute_patch_grid(2048, 512, 512, 64)
 
   # Should have multiple columns but only 1 row
   expect_true(all(grid$y == 0L))
@@ -48,7 +48,7 @@ test_that(".compute_patch_grid non-square image", {
 })
 
 test_that(".compute_patch_grid last patch aligns to edge", {
-  grid <- sdR:::.compute_patch_grid(1000, 1000, 512, 64)
+  grid <- sd2R:::.compute_patch_grid(1000, 1000, 512, 64)
 
   # Last patch should end exactly at width/height
   max_x <- max(grid$x) + 512L
@@ -58,7 +58,7 @@ test_that(".compute_patch_grid last patch aligns to edge", {
 })
 
 test_that(".blend_mask is all-ones for a corner patch", {
-  mask <- sdR:::.blend_mask(512, 512, 64,
+  mask <- sd2R:::.blend_mask(512, 512, 64,
                             is_left = TRUE, is_top = TRUE,
                             is_right = FALSE, is_bottom = FALSE)
   # Top-left corner: left and top edges are at canvas boundary → no ramp
@@ -69,7 +69,7 @@ test_that(".blend_mask is all-ones for a corner patch", {
 })
 
 test_that(".blend_mask center patch has ramps on all sides", {
-  mask <- sdR:::.blend_mask(512, 512, 64,
+  mask <- sd2R:::.blend_mask(512, 512, 64,
                             is_left = FALSE, is_top = FALSE,
                             is_right = FALSE, is_bottom = FALSE)
   # Center should be 1
@@ -82,7 +82,7 @@ test_that(".blend_mask center patch has ramps on all sides", {
 })
 
 test_that(".blend_mask edge patch suppresses ramp at boundary", {
-  mask <- sdR:::.blend_mask(512, 512, 64,
+  mask <- sd2R:::.blend_mask(512, 512, 64,
                             is_left = TRUE, is_top = TRUE,
                             is_right = TRUE, is_bottom = TRUE)
   # All edges at boundary → no ramps, mask is all ones
@@ -91,7 +91,7 @@ test_that(".blend_mask edge patch suppresses ramp at boundary", {
 
 test_that(".array_to_sd_image roundtrips with sd_image_to_array", {
   arr <- array(runif(16 * 16 * 3), dim = c(16, 16, 3))
-  img <- sdR:::.array_to_sd_image(arr)
+  img <- sd2R:::.array_to_sd_image(arr)
   arr2 <- sd_image_to_array(img)
   # uint8 quantization: max error < 1/255 + epsilon
   expect_true(max(abs(arr2 - arr)) < 1/255 + 0.01)
