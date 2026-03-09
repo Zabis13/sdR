@@ -45,5 +45,6 @@ sd/tokenize_util.o: PKG_CPPFLAGS += $(SD_COMPAT_FLAGS)
 sd/upscaler.o: PKG_CPPFLAGS += $(SD_COMPAT_FLAGS)
 sd/util.o: PKG_CPPFLAGS += $(SD_COMPAT_FLAGS)
 sd/version.o: PKG_CPPFLAGS += $(SD_COMPAT_FLAGS)
-sd/thirdparty/zip.o: PKG_CPPFLAGS += $(SD_COMPAT_FLAGS)
+# zip.c is third-party C code that doesn't use printf/abort — skip compat header
+# to avoid macro conflicts with system headers (e.g. msxml.h on Windows).
 
