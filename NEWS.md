@@ -1,3 +1,13 @@
+# sd2R 0.1.6
+
+## Pipeline Graph API
+* New `sd_pipeline()` / `sd_node()` — sequential graph-based pipeline.
+  Node types: `"txt2img"`, `"img2img"`, `"upscale"`, `"save"`.
+* `sd_run_pipeline(pipeline, ctx)` — execute pipeline with a single context.
+* `sd_save_pipeline()` / `sd_load_pipeline()` — JSON serialization.
+
+---
+
 # sd2R 0.1.5
 
 ## Flux Support

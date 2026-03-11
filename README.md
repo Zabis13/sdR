@@ -34,6 +34,26 @@ R  →  sd2R  →  ggmlR  →  ggml  →  Vulkan  →  GPU
 - **Highres Fix**: classic two-pass pipeline — generates base image at native model resolution, upscales (bilinear or ESRGAN), then refines with tiled img2img at low denoising strength. Produces coherent high-resolution images (2K, 4K+) with global composition preserved.
 - **Image utilities** in R: saving generated images to PNG, converting between internal tensors and R raw vectors, and simple inspection of output tensors.
 - **System introspection** via `sd_system_info()`, reporting GGML/Vulkan capabilities as detected by ggmlR at build time.
+- **Pipeline graph API**: `sd_pipeline()` + `sd_node()` for composable, sequential multi-step workflows (txt2img → upscale → img2img → save). Pipelines are serializable to JSON via `sd_save_pipeline()` / `sd_load_pipeline()`.
+
+## Pipeline Example
+
+```r
+pipe <- sd_pipeline(
+  sd_node("txt2img", prompt = "a cat in space", width = 512, height = 512),
+  sd_node("upscale", factor = 2),
+  sd_node("img2img", strength = 0.3),
+  sd_node("save", path = "output.png")
+)
+
+# Save / load as JSON
+sd_save_pipeline(pipe, "my_pipeline.json")
+pipe <- sd_load_pipeline("my_pipeline.json")
+
+# Run
+ctx <- sd_ctx("model.safetensors")
+sd_run_pipeline(pipe, ctx, upscaler_ctx = upscaler)
+```
 
 ## Implementation Details
 

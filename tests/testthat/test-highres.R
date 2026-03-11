@@ -98,7 +98,7 @@ test_that(".array_to_sd_image roundtrips with sd_image_to_array", {
 })
 
 test_that("sd_txt2img_highres has correct signature", {
-  args <- formals(sd_txt2img_highres)
+  args <- formals(sd2R:::sd_txt2img_highres)
   expect_true("tile_size" %in% names(args))
   expect_true("overlap" %in% names(args))
   expect_true("img2img_strength" %in% names(args))

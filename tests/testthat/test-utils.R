@@ -27,24 +27,24 @@ test_that("constants have correct count", {
 })
 
 test_that("C++ utility functions work", {
-  expect_true(is.character(sd_version_cpp()))
-  expect_true(is.character(sd_system_info_cpp()))
-  expect_true(is.integer(sd_num_physical_cores_cpp()))
+  expect_true(is.character(sd2R:::sd_version_cpp()))
+  expect_true(is.character(sd2R:::sd_system_info_cpp()))
+  expect_true(is.integer(sd2R:::sd_num_physical_cores_cpp()))
 })
 
 test_that("type name functions work", {
-  expect_equal(sd_type_name_cpp(SD_TYPE$F32), "f32")
-  expect_equal(sd_type_name_cpp(SD_TYPE$F16), "f16")
-  expect_equal(sd_type_name_cpp(SD_TYPE$Q4_0), "q4_0")
+  expect_equal(sd2R:::sd_type_name_cpp(SD_TYPE$F32), "f32")
+  expect_equal(sd2R:::sd_type_name_cpp(SD_TYPE$F16), "f16")
+  expect_equal(sd2R:::sd_type_name_cpp(SD_TYPE$Q4_0), "q4_0")
 })
 
 test_that("sample method name functions work", {
-  expect_equal(sd_sample_method_name_cpp(SAMPLE_METHOD$EULER), "euler")
+  expect_equal(sd2R:::sd_sample_method_name_cpp(SAMPLE_METHOD$EULER), "euler")
 })
 
 test_that("scheduler name functions work", {
-  expect_equal(sd_scheduler_name_cpp(SCHEDULER$DISCRETE), "discrete")
-  expect_equal(sd_scheduler_name_cpp(SCHEDULER$KARRAS), "karras")
+  expect_equal(sd2R:::sd_scheduler_name_cpp(SCHEDULER$DISCRETE), "discrete")
+  expect_equal(sd2R:::sd_scheduler_name_cpp(SCHEDULER$KARRAS), "karras")
 })
 
 test_that("sd_ctx rejects missing model", {
