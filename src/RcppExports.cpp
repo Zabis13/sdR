@@ -20,6 +20,34 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// sd_profile_start
+void sd_profile_start();
+RcppExport SEXP _sd2R_sd_profile_start() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    sd_profile_start();
+    return R_NilValue;
+END_RCPP
+}
+// sd_profile_stop
+void sd_profile_stop();
+RcppExport SEXP _sd2R_sd_profile_stop() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    sd_profile_stop();
+    return R_NilValue;
+END_RCPP
+}
+// sd_profile_get
+Rcpp::DataFrame sd_profile_get();
+RcppExport SEXP _sd2R_sd_profile_get() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(sd_profile_get());
+    return rcpp_result_gen;
+END_RCPP
+}
 // sd_init_log
 void sd_init_log();
 RcppExport SEXP _sd2R_sd_init_log() {
@@ -172,6 +200,9 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_sd2R_sd_set_verbose", (DL_FUNC) &_sd2R_sd_set_verbose, 1},
+    {"_sd2R_sd_profile_start", (DL_FUNC) &_sd2R_sd_profile_start, 0},
+    {"_sd2R_sd_profile_stop", (DL_FUNC) &_sd2R_sd_profile_stop, 0},
+    {"_sd2R_sd_profile_get", (DL_FUNC) &_sd2R_sd_profile_get, 0},
     {"_sd2R_sd_init_log", (DL_FUNC) &_sd2R_sd_init_log, 0},
     {"_sd2R_sd_create_context", (DL_FUNC) &_sd2R_sd_create_context, 1},
     {"_sd2R_sd_destroy_context", (DL_FUNC) &_sd2R_sd_destroy_context, 1},

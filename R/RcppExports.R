@@ -5,6 +5,18 @@ sd_set_verbose <- function(verbose) {
     invisible(.Call(`_sd2R_sd_set_verbose`, verbose))
 }
 
+sd_profile_start <- function() {
+    invisible(.Call(`_sd2R_sd_profile_start`))
+}
+
+sd_profile_stop <- function() {
+    invisible(.Call(`_sd2R_sd_profile_stop`))
+}
+
+sd_profile_get <- function() {
+    .Call(`_sd2R_sd_profile_get`)
+}
+
 sd_init_log <- function() {
     invisible(.Call(`_sd2R_sd_init_log`))
 }

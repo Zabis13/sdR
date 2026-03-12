@@ -26,6 +26,10 @@ sd_ctx(
   flow_shift = 0,
   model_type = "sd1",
   vram_gb = NULL,
+  device_layout = "mono",
+  diffusion_gpu = -1L,
+  clip_gpu = -1L,
+  vae_gpu = -1L,
   verbose = FALSE
 )
 }
@@ -79,6 +83,32 @@ Default \code{"sd1"}.}
 \item{vram_gb}{Override available VRAM in GB. When set, disables auto-detection
 and uses this value for strategy routing. Default \code{NULL} (auto-detect
 from Vulkan device).}
+
+\item{device_layout}{GPU layout preset for multi-GPU systems. One of:
+\describe{
+  \item{\code{"mono"}}{All models on one GPU (default).}
+  \item{\code{"split_encoders"}}{Text encoders (CLIP/T5) on GPU 1,
+    diffusion + VAE on GPU 0.}
+  \item{\code{"split_vae"}}{Text encoders + VAE on GPU 1,
+    diffusion on GPU 0. Maximizes VRAM for diffusion.}
+  \item{\code{"encoders_cpu"}}{Text encoders on CPU,
+    diffusion + VAE on GPU. Saves GPU memory at the cost of slower
+    text encoding.}
+}
+Ignored when \code{diffusion_gpu}, \code{clip_gpu}, or \code{vae_gpu}
+are explicitly set (>= 0).}
+
+\item{diffusion_gpu}{Vulkan GPU device index for the diffusion model.
+Default \code{-1} (use \code{SD_VK_DEVICE} env or device 0).
+Overrides \code{device_layout}.}
+
+\item{clip_gpu}{Vulkan GPU device index for CLIP/T5 text encoders.
+Default \code{-1} (same device as diffusion).
+Overrides \code{device_layout}.}
+
+\item{vae_gpu}{Vulkan GPU device index for VAE encoder/decoder.
+Default \code{-1} (same device as diffusion).
+Overrides \code{device_layout}.}
 
 \item{verbose}{If \code{TRUE}, print model loading progress and sampling
 steps. Default \code{FALSE}.}

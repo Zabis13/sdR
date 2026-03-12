@@ -260,61 +260,75 @@ public:
         ggml_backend_free(backend);
     }
 
-    void init_backend() {
+    // Resolve default Vulkan device from SD_VK_DEVICE env or 0
+    static size_t get_default_vk_device() {
+        size_t device = 0;
+#ifdef SD_USE_VULKAN
+        const int device_count = ggml_backend_vk_get_device_count();
+        const char* SD_VK_DEVICE = getenv("SD_VK_DEVICE");
+        if (SD_VK_DEVICE != nullptr && device_count > 0) {
+            std::string sd_vk_device_str = SD_VK_DEVICE;
+            try {
+                device = std::stoull(sd_vk_device_str);
+            } catch (const std::invalid_argument&) {
+                LOG_WARN("SD_VK_DEVICE environment variable is not a valid integer (%s). Falling back to device 0.", SD_VK_DEVICE);
+                device = 0;
+            } catch (const std::out_of_range&) {
+                LOG_WARN("SD_VK_DEVICE environment variable value is out of range for `unsigned long long` type (%s). Falling back to device 0.", SD_VK_DEVICE);
+                device = 0;
+            }
+            if (device >= (size_t)device_count) {
+                LOG_WARN("Cannot find targeted vulkan device (%llu). Falling back to device 0.", (unsigned long long)device);
+                device = 0;
+            }
+        }
+#endif
+        return device;
+    }
+
+    // Create a GPU backend for a given device index (-1 = use default)
+    ggml_backend_t create_gpu_backend(int device_index) {
+        ggml_backend_t be = nullptr;
+#ifdef SD_USE_VULKAN
+        size_t dev = (device_index >= 0) ? (size_t)device_index : get_default_vk_device();
+        const int device_count = ggml_backend_vk_get_device_count();
+        if (device_count > 0) {
+            if (dev >= (size_t)device_count) {
+                LOG_WARN("Vulkan device %zu not available (have %d). Falling back to device 0.", dev, device_count);
+                dev = 0;
+            }
+            LOG_INFO("Vulkan: Using device %zu", dev);
+            be = ggml_backend_vk_init(dev);
+        }
+        if (!be) {
+            LOG_WARN("Failed to initialize Vulkan backend for device %zu", dev);
+        }
+#endif
 #ifdef SD_USE_CUDA
-        LOG_DEBUG("Using CUDA backend");
-        backend = ggml_backend_cuda_init(0);
+        (void)device_index;
+        be = ggml_backend_cuda_init(0);
 #endif
 #ifdef SD_USE_METAL
-        LOG_DEBUG("Using Metal backend");
-        backend = ggml_backend_metal_init();
-#endif
-#ifdef SD_USE_VULKAN
-        LOG_DEBUG("Using Vulkan backend");
-        size_t device          = 0;
-        const int device_count = ggml_backend_vk_get_device_count();
-        if (device_count) {
-            const char* SD_VK_DEVICE = getenv("SD_VK_DEVICE");
-            if (SD_VK_DEVICE != nullptr) {
-                std::string sd_vk_device_str = SD_VK_DEVICE;
-                try {
-                    device = std::stoull(sd_vk_device_str);
-                } catch (const std::invalid_argument&) {
-                    LOG_WARN("SD_VK_DEVICE environment variable is not a valid integer (%s). Falling back to device 0.", SD_VK_DEVICE);
-                    device = 0;
-                } catch (const std::out_of_range&) {
-                    LOG_WARN("SD_VK_DEVICE environment variable value is out of range for `unsigned long long` type (%s). Falling back to device 0.", SD_VK_DEVICE);
-                    device = 0;
-                }
-                if (device >= device_count) {
-                    LOG_WARN("Cannot find targeted vulkan device (%llu). Falling back to device 0.", device);
-                    device = 0;
-                }
-            }
-            LOG_INFO("Vulkan: Using device %llu", device);
-            backend = ggml_backend_vk_init(device);
-        }
-        if (!backend) {
-            LOG_WARN("Failed to initialize Vulkan backend");
-        }
+        (void)device_index;
+        be = ggml_backend_metal_init();
 #endif
 #ifdef SD_USE_OPENCL
-        LOG_DEBUG("Using OpenCL backend");
-        // ggml_log_set(ggml_log_callback_default, nullptr); // Optional ggml logs
-        backend = ggml_backend_opencl_init();
-        if (!backend) {
-            LOG_WARN("Failed to initialize OpenCL backend");
-        }
+        (void)device_index;
+        be = ggml_backend_opencl_init();
 #endif
 #ifdef SD_USE_SYCL
-        LOG_DEBUG("Using SYCL backend");
-        backend = ggml_backend_sycl_init(0);
+        (void)device_index;
+        be = ggml_backend_sycl_init(0);
 #endif
-
-        if (!backend) {
-            LOG_DEBUG("Using CPU backend");
-            backend = ggml_backend_cpu_init();
+        if (!be) {
+            LOG_DEBUG("Falling back to CPU backend");
+            be = ggml_backend_cpu_init();
         }
+        return be;
+    }
+
+    void init_backend(int device_index = -1) {
+        backend = create_gpu_backend(device_index);
     }
 
     std::shared_ptr<RNG> get_rng(rng_type_t rng_type) {
@@ -344,7 +358,7 @@ public:
 
         ggml_log_set(ggml_log_callback_default, nullptr);
 
-        init_backend();
+        init_backend(sd_ctx_params->diffusion_gpu_device);
 
         ModelLoader model_loader;
 
@@ -527,6 +541,10 @@ public:
             if (clip_on_cpu && !ggml_backend_is_cpu(backend)) {
                 LOG_INFO("CLIP: Using CPU backend");
                 clip_backend = ggml_backend_cpu_init();
+            } else if (sd_ctx_params->clip_gpu_device >= 0 &&
+                       sd_ctx_params->clip_gpu_device != sd_ctx_params->diffusion_gpu_device) {
+                LOG_INFO("CLIP: Using separate GPU device %d", sd_ctx_params->clip_gpu_device);
+                clip_backend = create_gpu_backend(sd_ctx_params->clip_gpu_device);
             }
             if (sd_version_is_sd3(version)) {
                 cond_stage_model = std::make_shared<SD3CLIPEmbedder>(clip_backend,
@@ -696,6 +714,10 @@ public:
             if (sd_ctx_params->keep_vae_on_cpu && !ggml_backend_is_cpu(backend)) {
                 LOG_INFO("VAE Autoencoder: Using CPU backend");
                 vae_backend = ggml_backend_cpu_init();
+            } else if (sd_ctx_params->vae_gpu_device >= 0 &&
+                       sd_ctx_params->vae_gpu_device != sd_ctx_params->diffusion_gpu_device) {
+                LOG_INFO("VAE Autoencoder: Using separate GPU device %d", sd_ctx_params->vae_gpu_device);
+                vae_backend = create_gpu_backend(sd_ctx_params->vae_gpu_device);
             } else {
                 vae_backend = backend;
             }
@@ -3159,6 +3181,9 @@ void sd_ctx_params_init(sd_ctx_params_t* sd_ctx_params) {
     sd_ctx_params->chroma_use_t5_mask      = false;
     sd_ctx_params->chroma_t5_mask_pad      = 1;
     sd_ctx_params->flow_shift              = INFINITY;
+    sd_ctx_params->diffusion_gpu_device    = -1;
+    sd_ctx_params->clip_gpu_device         = -1;
+    sd_ctx_params->vae_gpu_device          = -1;
 }
 
 char* sd_ctx_params_to_str(const sd_ctx_params_t* sd_ctx_params) {

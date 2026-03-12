@@ -1283,6 +1283,8 @@ struct FluxCLIPEmbedder : public Conditioner {
             // clip_l
             if (chunk_idx == 0) {
                 if (clip_l) {
+                    LOG_INFO("text_encode_clip starting");
+                    int64_t t_clip_start = ggml_time_ms();
                     size_t chunk_len_l = 77;
                     std::vector<int> chunk_tokens(clip_l_tokens.begin(),
                                                   clip_l_tokens.begin() + chunk_len_l);
@@ -1304,11 +1306,14 @@ struct FluxCLIPEmbedder : public Conditioner {
                                     clip_skip,
                                     &pooled,
                                     work_ctx);
+                    LOG_INFO("text_encode_clip completed, taking %" PRId64 " ms", ggml_time_ms() - t_clip_start);
                 }
             }
 
             // t5
             if (t5) {
+                LOG_INFO("text_encode_t5 starting");
+                int64_t t_t5_start = ggml_time_ms();
                 std::vector<int> chunk_tokens(t5_tokens.begin() + chunk_idx * chunk_len,
                                               t5_tokens.begin() + (chunk_idx + 1) * chunk_len);
                 std::vector<float> chunk_weights(t5_weights.begin() + chunk_idx * chunk_len,
@@ -1321,6 +1326,7 @@ struct FluxCLIPEmbedder : public Conditioner {
                             nullptr,
                             &chunk_hidden_states,
                             work_ctx);
+                LOG_INFO("text_encode_t5 completed, taking %" PRId64 " ms", ggml_time_ms() - t_t5_start);
                 {
                     auto tensor         = chunk_hidden_states;
                     float original_mean = ggml_ext_tensor_mean(tensor);

@@ -33,6 +33,28 @@
 #' @param vram_gb Override available VRAM in GB. When set, disables auto-detection
 #'   and uses this value for strategy routing. Default \code{NULL} (auto-detect
 #'   from Vulkan device).
+#' @param device_layout GPU layout preset for multi-GPU systems. One of:
+#'   \describe{
+#'     \item{\code{"mono"}}{All models on one GPU (default).}
+#'     \item{\code{"split_encoders"}}{Text encoders (CLIP/T5) on GPU 1,
+#'       diffusion + VAE on GPU 0.}
+#'     \item{\code{"split_vae"}}{Text encoders + VAE on GPU 1,
+#'       diffusion on GPU 0. Maximizes VRAM for diffusion.}
+#'     \item{\code{"encoders_cpu"}}{Text encoders on CPU,
+#'       diffusion + VAE on GPU. Saves GPU memory at the cost of slower
+#'       text encoding.}
+#'   }
+#'   Ignored when \code{diffusion_gpu}, \code{clip_gpu}, or \code{vae_gpu}
+#'   are explicitly set (>= 0).
+#' @param diffusion_gpu Vulkan GPU device index for the diffusion model.
+#'   Default \code{-1} (use \code{SD_VK_DEVICE} env or device 0).
+#'   Overrides \code{device_layout}.
+#' @param clip_gpu Vulkan GPU device index for CLIP/T5 text encoders.
+#'   Default \code{-1} (same device as diffusion).
+#'   Overrides \code{device_layout}.
+#' @param vae_gpu Vulkan GPU device index for VAE encoder/decoder.
+#'   Default \code{-1} (same device as diffusion).
+#'   Overrides \code{device_layout}.
 #' @param verbose If \code{TRUE}, print model loading progress and sampling
 #'   steps. Default \code{FALSE}.
 #' @return An external pointer to the SD context (class "sd_ctx") with
@@ -66,6 +88,10 @@ sd_ctx <- function(model_path = NULL,
                    flow_shift = 0.0,
                    model_type = "sd1",
                    vram_gb = NULL,
+                   device_layout = "mono",
+                   diffusion_gpu = -1L,
+                   clip_gpu = -1L,
+                   vae_gpu = -1L,
                    verbose = FALSE) {
 
   sd_set_verbose(verbose)
@@ -111,6 +137,15 @@ sd_ctx <- function(model_path = NULL,
   if (!is.null(prediction)) {
     params$prediction <- as.integer(prediction)
   }
+
+  # GPU device layout
+  layout <- .resolve_device_layout(device_layout, diffusion_gpu, clip_gpu,
+                                    vae_gpu, keep_clip_on_cpu, keep_vae_on_cpu)
+  if (layout$diffusion >= 0L) params$diffusion_gpu_device <- layout$diffusion
+  if (layout$clip >= 0L)      params$clip_gpu_device      <- layout$clip
+  if (layout$vae >= 0L)       params$vae_gpu_device       <- layout$vae
+  if (layout$clip_on_cpu)     params$keep_clip_on_cpu     <- TRUE
+  if (layout$vae_on_cpu)      params$keep_vae_on_cpu      <- TRUE
 
   ctx <- sd_create_context(params)
   attr(ctx, "model_type") <- model_type
@@ -995,6 +1030,52 @@ sd_txt2img_highres <- function(ctx,
 #' @param model_type One of "sd1", "sd2", "sdxl", "flux", "sd3"
 #' @return Integer tile size in pixels
 #' @keywords internal
+#' Resolve device layout preset to concrete GPU indices
+#'
+#' @param layout One of "mono", "split_encoders", "split_vae", "encoders_cpu"
+#' @param diffusion_gpu Manual override (-1 = use layout)
+#' @param clip_gpu Manual override (-1 = use layout)
+#' @param vae_gpu Manual override (-1 = use layout)
+#' @param keep_clip_on_cpu Existing keep_clip_on_cpu flag
+#' @param keep_vae_on_cpu Existing keep_vae_on_cpu flag
+#' @return List with diffusion, clip, vae (GPU indices), clip_on_cpu, vae_on_cpu
+#' @keywords internal
+.resolve_device_layout <- function(layout, diffusion_gpu, clip_gpu, vae_gpu,
+                                    keep_clip_on_cpu, keep_vae_on_cpu) {
+  layout <- match.arg(layout, c("mono", "split_encoders", "split_vae",
+                                 "encoders_cpu"))
+  has_manual <- any(c(diffusion_gpu, clip_gpu, vae_gpu) >= 0L)
+
+  if (has_manual) {
+    return(list(
+      diffusion = as.integer(diffusion_gpu),
+      clip      = as.integer(clip_gpu),
+      vae       = as.integer(vae_gpu),
+      clip_on_cpu = keep_clip_on_cpu,
+      vae_on_cpu  = keep_vae_on_cpu
+    ))
+  }
+
+  switch(layout,
+    mono = list(
+      diffusion = -1L, clip = -1L, vae = -1L,
+      clip_on_cpu = keep_clip_on_cpu, vae_on_cpu = keep_vae_on_cpu
+    ),
+    split_encoders = list(
+      diffusion = 0L, clip = 1L, vae = -1L,
+      clip_on_cpu = FALSE, vae_on_cpu = keep_vae_on_cpu
+    ),
+    split_vae = list(
+      diffusion = 0L, clip = 1L, vae = 1L,
+      clip_on_cpu = FALSE, vae_on_cpu = FALSE
+    ),
+    encoders_cpu = list(
+      diffusion = -1L, clip = -1L, vae = -1L,
+      clip_on_cpu = TRUE, vae_on_cpu = keep_vae_on_cpu
+    )
+  )
+}
+
 .native_tile_size <- function(model_type) {
   switch(model_type,
     sd1  = 512L,

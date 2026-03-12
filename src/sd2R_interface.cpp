@@ -1,8 +1,109 @@
 #include <Rcpp.h>
+#include <chrono>
+#include <vector>
+#include <string>
+#include <cstring>
 #include "sd/stable-diffusion.h"
 
 // --- Verbose flag: controls log and progress output ---
 static bool r_sd_verbose = false;
+
+// --- Profiling: capture stage events from sd.cpp log messages ---
+static bool r_sd_profiling = false;
+
+struct ProfileEvent {
+    std::string stage;
+    std::string kind;  // "start" or "end"
+    double timestamp_ms;
+};
+
+static std::vector<ProfileEvent> r_profile_events;
+static std::chrono::steady_clock::time_point r_profile_epoch;
+
+static double profile_now_ms() {
+    auto now = std::chrono::steady_clock::now();
+    return std::chrono::duration<double, std::milli>(now - r_profile_epoch).count();
+}
+
+// Detect stage boundaries from sd.cpp LOG_INFO messages
+static void profile_parse_log(const std::string& msg) {
+    if (!r_sd_profiling) return;
+
+    double ts = profile_now_ms();
+
+    // --- Model loading (new_sd_ctx) ---
+    if (msg.find("loading ") == 0) {
+        if (msg.find("diffusion model from") != std::string::npos) {
+            r_profile_events.push_back({"load_diffusion", "start", ts});
+        } else if (msg.find("clip_l from") != std::string::npos) {
+            r_profile_events.push_back({"load_clip_l", "start", ts});
+        } else if (msg.find("clip_g from") != std::string::npos) {
+            r_profile_events.push_back({"load_clip_g", "start", ts});
+        } else if (msg.find("t5xxl from") != std::string::npos) {
+            r_profile_events.push_back({"load_t5xxl", "start", ts});
+        } else if (msg.find("vae from") != std::string::npos) {
+            r_profile_events.push_back({"load_vae", "start", ts});
+        } else if (msg.find("model from") != std::string::npos) {
+            r_profile_events.push_back({"load_model", "start", ts});
+        }
+        return;
+    }
+
+    // --- Version line marks end of all loading ---
+    if (msg.find("Version: ") == 0) {
+        r_profile_events.push_back({"load_all", "end", ts});
+        return;
+    }
+
+    // --- Text encoding per-model ---
+    if (msg.find("text_encode_clip starting") != std::string::npos) {
+        r_profile_events.push_back({"text_encode_clip", "start", ts});
+    }
+    else if (msg.find("text_encode_clip completed") != std::string::npos) {
+        r_profile_events.push_back({"text_encode_clip", "end", ts});
+    }
+    else if (msg.find("text_encode_t5 starting") != std::string::npos) {
+        r_profile_events.push_back({"text_encode_t5", "start", ts});
+    }
+    else if (msg.find("text_encode_t5 completed") != std::string::npos) {
+        r_profile_events.push_back({"text_encode_t5", "end", ts});
+    }
+    // Text encoding total
+    else if (msg.find("get_learned_condition completed") != std::string::npos) {
+        r_profile_events.push_back({"text_encode", "end", ts});
+    }
+    // Sampling setup
+    else if (msg.find("sampling using ") != std::string::npos) {
+        r_profile_events.push_back({"sampling", "start", ts});
+    }
+    // Mode markers
+    else if (msg.find("IMG2IMG") != std::string::npos) {
+        r_profile_events.push_back({"vae_encode", "start", ts});
+    }
+    // VAE encode done (img2img)
+    else if (msg.find("encode_first_stage completed") != std::string::npos) {
+        r_profile_events.push_back({"vae_encode", "end", ts});
+    }
+    // Sampling done
+    else if (msg.find("sampling completed") != std::string::npos) {
+        r_profile_events.push_back({"sampling", "end", ts});
+    }
+    // VAE decode
+    else if (msg.find("decoding ") != std::string::npos && msg.find("latent") != std::string::npos) {
+        r_profile_events.push_back({"vae_decode", "start", ts});
+    }
+    else if (msg.find("decode_first_stage completed") != std::string::npos) {
+        r_profile_events.push_back({"vae_decode", "end", ts});
+    }
+    // Tiled sampling
+    else if (msg.find("Tiled sampling:") != std::string::npos) {
+        r_profile_events.push_back({"tiled_sampling", "start", ts});
+    }
+    // Total
+    else if (msg.find("generate_image completed") != std::string::npos) {
+        r_profile_events.push_back({"generate_total", "end", ts});
+    }
+}
 
 // --- Log callback: route SD log messages to R ---
 static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data) {
@@ -10,6 +111,11 @@ static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data
     std::string msg(text);
     while (!msg.empty() && msg.back() == '\n') msg.pop_back();
     if (msg.empty()) return;
+
+    // Always parse for profiling (even when not verbose)
+    if (level == SD_LOG_INFO) {
+        profile_parse_log(msg);
+    }
 
     switch (level) {
         case SD_LOG_DEBUG:
@@ -40,6 +146,39 @@ static void r_sd_progress_callback(int step, int steps, float time, void* data) 
 // [[Rcpp::export]]
 void sd_set_verbose(bool verbose) {
     r_sd_verbose = verbose;
+}
+
+// [[Rcpp::export]]
+void sd_profile_start() {
+    r_profile_events.clear();
+    r_profile_epoch = std::chrono::steady_clock::now();
+    r_sd_profiling = true;
+}
+
+// [[Rcpp::export]]
+void sd_profile_stop() {
+    r_sd_profiling = false;
+}
+
+// [[Rcpp::export]]
+Rcpp::DataFrame sd_profile_get() {
+    int n = (int)r_profile_events.size();
+    Rcpp::CharacterVector stages(n);
+    Rcpp::CharacterVector kinds(n);
+    Rcpp::NumericVector timestamps(n);
+
+    for (int i = 0; i < n; i++) {
+        stages[i] = r_profile_events[i].stage;
+        kinds[i] = r_profile_events[i].kind;
+        timestamps[i] = r_profile_events[i].timestamp_ms;
+    }
+
+    return Rcpp::DataFrame::create(
+        Rcpp::Named("stage") = stages,
+        Rcpp::Named("kind") = kinds,
+        Rcpp::Named("timestamp_ms") = timestamps,
+        Rcpp::Named("stringsAsFactors") = false
+    );
 }
 
 // --- Custom deleters for XPtr (avoids delete-incomplete warning) ---
@@ -126,6 +265,12 @@ SEXP sd_create_context(Rcpp::List params) {
         p.diffusion_flash_attn = Rcpp::as<bool>(params["diffusion_flash_attn"]);
     if (params.containsElementNamed("flow_shift"))
         p.flow_shift = Rcpp::as<float>(params["flow_shift"]);
+    if (params.containsElementNamed("diffusion_gpu_device"))
+        p.diffusion_gpu_device = Rcpp::as<int>(params["diffusion_gpu_device"]);
+    if (params.containsElementNamed("clip_gpu_device"))
+        p.clip_gpu_device = Rcpp::as<int>(params["clip_gpu_device"]);
+    if (params.containsElementNamed("vae_gpu_device"))
+        p.vae_gpu_device = Rcpp::as<int>(params["vae_gpu_device"]);
 
     sd_ctx_t* ctx = new_sd_ctx(&p);
     if (!ctx) {
@@ -256,6 +401,13 @@ Rcpp::List sd_generate_image(SEXP ctx_sexp, Rcpp::List params) {
     // Control image
     if (params.containsElementNamed("control_image") && !Rf_isNull(params["control_image"])) {
         p.control_image = r_to_sd_image(Rcpp::as<Rcpp::List>(params["control_image"]));
+    }
+
+    // Profile: mark text_encode start and generate_total start
+    if (r_sd_profiling) {
+        double ts = profile_now_ms();
+        r_profile_events.push_back({"generate_total", "start", ts});
+        r_profile_events.push_back({"text_encode", "start", ts});
     }
 
     sd_image_t* results = generate_image(xptr.get(), &p);

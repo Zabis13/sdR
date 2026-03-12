@@ -1,3 +1,26 @@
+# sd2R 0.1.7
+
+## Multi-GPU Model Parallelism
+* New `device_layout` parameter in `sd_ctx()`: distribute sub-models across
+  multiple Vulkan GPUs without separate processes.
+  - `"mono"` — all on one GPU (default, backward-compatible).
+  - `"split_encoders"` — CLIP/T5 on GPU 1, diffusion + VAE on GPU 0.
+  - `"split_vae"` — CLIP/T5 + VAE on GPU 1, diffusion on GPU 0.
+  - `"encoders_cpu"` — text encoders on CPU, diffusion + VAE on GPU.
+* Low-level `diffusion_gpu`, `clip_gpu`, `vae_gpu` integer arguments for
+  manual device assignment (override presets).
+
+## Profiling
+* New profiling API for per-stage timing of image generation:
+  - `sd_profile_start()` / `sd_profile_stop()` — control event capture.
+  - `sd_profile_get()` — raw event data frame.
+  - `sd_profile_summary()` — formatted summary with durations and percentages.
+* Stages tracked: `text_encode` (with `text_encode_clip` and `text_encode_t5`
+  sub-stages), `sampling`, `vae_decode`, `vae_encode`, model loading.
+* Pretty-printed output via `print.sd_profile()`.
+
+---
+
 # sd2R 0.1.6
 
 ## Pipeline Graph API

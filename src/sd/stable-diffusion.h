@@ -204,6 +204,9 @@ typedef struct {
     int chroma_t5_mask_pad;
     bool qwen_image_zero_cond_t;
     float flow_shift;
+    int diffusion_gpu_device;  // -1 = use SD_VK_DEVICE (default)
+    int clip_gpu_device;       // -1 = same as diffusion
+    int vae_gpu_device;        // -1 = same as diffusion
 } sd_ctx_params_t;
 
 typedef struct {
