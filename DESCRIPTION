@@ -56,6 +56,9 @@ LinkingTo:
 Suggests:
     testthat (>= 3.0.0),
     callr,
-    png
+    png,
+    plumber,
+    base64enc,
+    jsonlite
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3

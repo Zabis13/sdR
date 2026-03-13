@@ -147,61 +147,136 @@ sd_profile_summary <- function(events) {
   result
 }
 
+#' Create cache configuration for step caching
+#'
+#' Constructs a list of cache parameters for fine-tuning step caching behavior.
+#' Pass the result as \code{cache_config} to generation functions.
+#'
+#' @param mode Cache mode integer from \code{SD_CACHE_MODE} (default EASYCACHE)
+#' @param threshold Reuse threshold (default 1.0). Lower = more aggressive caching
+#' @param start_percent Start caching after this fraction of steps (default 0.15)
+#' @param end_percent Stop caching after this fraction of steps (default 0.95)
+#' @return Named list of cache parameters
+#' @export
+sd_cache_params <- function(mode = SD_CACHE_MODE$EASYCACHE,
+                            threshold = 1.0,
+                            start_percent = 0.15,
+                            end_percent = 0.95) {
+  list(
+    cache_mode = as.integer(mode),
+    cache_threshold = as.numeric(threshold),
+    cache_start = as.numeric(start_percent),
+    cache_end = as.numeric(end_percent)
+  )
+}
+
 #' @export
 print.sd_profile <- function(x, ...) {
   if (nrow(x) == 0L) {
     cat("(no profile events)\n")
     return(invisible(x))
   }
-  total_row <- x[x$stage == "generate_total", , drop = FALSE]
-  total_s <- if (nrow(total_row) > 0L) total_row$duration_s[1L] else NA_real_
 
-  .pct <- function(dur) {
-    if (!is.na(total_s) && !is.na(dur) && total_s > 0) {
-      sprintf(" (%4.1f%%)", dur / total_s * 100)
+  # Identify passes by generate_total intervals
+  passes <- x[x$stage == "generate_total" & !is.na(x$duration_s), , drop = FALSE]
+  n_passes <- nrow(passes)
+
+  # Compute-stage names (excluding load_* and generate_total)
+  compute_stages <- c("text_encode", "text_encode_clip", "text_encode_t5",
+                       "vae_encode", "sampling", "tiled_sampling", "vae_decode")
+
+  # Helper: assign each row to a pass based on time interval
+  .assign_pass <- function(rows, passes) {
+    pass_id <- integer(nrow(rows))
+    for (i in seq_len(nrow(rows))) {
+      ts <- rows$end_ms[i]
+      for (p in seq_len(nrow(passes))) {
+        if (ts >= passes$start_ms[p] && ts <= passes$end_ms[p]) {
+          pass_id[i] <- p
+          break
+        }
+      }
+    }
+    pass_id
+  }
+
+  .pct <- function(dur, total) {
+    if (!is.na(total) && !is.na(dur) && total > 0) {
+      sprintf(" (%4.1f%%)", dur / total * 100)
     } else ""
   }
 
-  .line <- function(label, dur, indent = 2L) {
+  .line <- function(label, dur, total, indent = 2L) {
     pad <- paste(rep(" ", indent), collapse = "")
-    cat(sprintf("%s%-20s %7.2fs%s\n", pad, label, dur, .pct(dur)))
+    cat(sprintf("%s%-20s %7.2fs%s\n", pad, label, dur, .pct(dur, total)))
+  }
+
+  # Print one pass worth of stages
+  .print_pass_stages <- function(pdata, total_s, indent = 2L) {
+    # Load stages
+    load_rows <- pdata[grepl("^load_", pdata$stage) & !is.na(pdata$duration_s), ,
+                        drop = FALSE]
+    if (nrow(load_rows) > 0L) {
+      for (i in seq_len(nrow(load_rows))) {
+        .line(load_rows$stage[i], load_rows$duration_s[i], total_s, indent)
+      }
+    }
+    # Text encoding
+    te <- pdata[pdata$stage == "text_encode" & !is.na(pdata$duration_s), , drop = FALSE]
+    te_clip <- pdata[pdata$stage == "text_encode_clip" & !is.na(pdata$duration_s), ,
+                      drop = FALSE]
+    te_t5 <- pdata[pdata$stage == "text_encode_t5" & !is.na(pdata$duration_s), ,
+                    drop = FALSE]
+    if (nrow(te) > 0L) {
+      .line("text_encode", sum(te$duration_s), total_s, indent)
+      if (nrow(te_clip) > 0L) .line("clip", sum(te_clip$duration_s), total_s, indent + 2L)
+      if (nrow(te_t5) > 0L)   .line("t5", sum(te_t5$duration_s), total_s, indent + 2L)
+    }
+    # VAE encode
+    ve <- pdata[pdata$stage == "vae_encode" & !is.na(pdata$duration_s), , drop = FALSE]
+    if (nrow(ve) > 0L) .line("vae_encode", sum(ve$duration_s), total_s, indent)
+    # Sampling
+    samp <- pdata[pdata$stage == "sampling" & !is.na(pdata$duration_s), , drop = FALSE]
+    if (nrow(samp) > 0L) .line("sampling", sum(samp$duration_s), total_s, indent)
+    # VAE decode
+    vd <- pdata[pdata$stage == "vae_decode" & !is.na(pdata$duration_s), , drop = FALSE]
+    if (nrow(vd) > 0L) .line("vae_decode", sum(vd$duration_s), total_s, indent)
   }
 
   cat("sd2R Profile\n")
 
-  # Load stages (if present)
-  load_stages <- x[grepl("^load_", x$stage) & !is.na(x$duration_s), , drop = FALSE]
-  if (nrow(load_stages) > 0L) {
-    for (i in seq_len(nrow(load_stages))) {
-      .line(load_stages$stage[i], load_stages$duration_s[i])
+  if (n_passes <= 1L) {
+    # Single pass: original compact format
+    total_s <- if (n_passes == 1L) passes$duration_s[1L] else NA_real_
+    .print_pass_stages(x, total_s)
+    if (!is.na(total_s)) {
+      cat(sprintf("  %-20s %7.2fs\n", "TOTAL", total_s))
     }
-  }
+  } else {
+    # Multi-pass: show each pass, then summary
+    compute_rows <- x[x$stage %in% compute_stages & !is.na(x$duration_s), , drop = FALSE]
+    pass_ids <- .assign_pass(compute_rows, passes)
+    compute_rows$pass <- pass_ids
 
-  # Text encoding total + sub-stages
-  te_total <- x[x$stage == "text_encode" & !is.na(x$duration_s), , drop = FALSE]
-  te_clip  <- x[x$stage == "text_encode_clip" & !is.na(x$duration_s), , drop = FALSE]
-  te_t5    <- x[x$stage == "text_encode_t5" & !is.na(x$duration_s), , drop = FALSE]
-  if (nrow(te_total) > 0L) {
-    .line("text_encode", te_total$duration_s[1L])
-    if (nrow(te_clip) > 0L) .line("clip", te_clip$duration_s[1L], 4L)
-    if (nrow(te_t5) > 0L)   .line("t5", te_t5$duration_s[1L], 4L)
-  }
+    for (p in seq_len(n_passes)) {
+      pass_total <- passes$duration_s[p]
+      cat(sprintf("  Pass %d:\n", p))
+      pdata <- compute_rows[compute_rows$pass == p, , drop = FALSE]
+      .print_pass_stages(pdata, pass_total, indent = 4L)
+      cat(sprintf("    %-20s %7.2fs\n", "pass_total", pass_total))
+    }
 
-  # VAE encode (img2img)
-  ve <- x[x$stage == "vae_encode" & !is.na(x$duration_s), , drop = FALSE]
-  if (nrow(ve) > 0L) .line("vae_encode", ve$duration_s[1L])
-
-  # Sampling
-  samp <- x[x$stage == "sampling" & !is.na(x$duration_s), , drop = FALSE]
-  if (nrow(samp) > 0L) .line("sampling", samp$duration_s[1L])
-
-  # VAE decode
-  vd <- x[x$stage == "vae_decode" & !is.na(x$duration_s), , drop = FALSE]
-  if (nrow(vd) > 0L) .line("vae_decode", vd$duration_s[1L])
-
-  # Total
-  if (!is.na(total_s)) {
-    cat(sprintf("  %-20s %7.2fs\n", "TOTAL", total_s))
+    # Summary: aggregate across all passes
+    grand_total <- sum(passes$duration_s)
+    cat("  --- Summary ---\n")
+    for (s in c("text_encode", "vae_encode", "sampling", "vae_decode")) {
+      srows <- compute_rows[compute_rows$stage == s & !is.na(compute_rows$duration_s), ,
+                             drop = FALSE]
+      if (nrow(srows) > 0L) {
+        .line(s, sum(srows$duration_s), grand_total)
+      }
+    }
+    cat(sprintf("  %-20s %7.2fs\n", "TOTAL", grand_total))
   }
   invisible(x)
 }

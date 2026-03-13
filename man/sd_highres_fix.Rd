@@ -26,7 +26,9 @@ sd_highres_fix(
   vae_mode = "auto",
   vae_auto_threshold = 1048576L,
   vae_tile_size = 64L,
-  vae_tile_overlap = 0.25
+  vae_tile_overlap = 0.25,
+  cache_mode = c("off", "easy", "ucache"),
+  cache_config = NULL
 )
 }
 \arguments{
@@ -68,17 +70,26 @@ default 0.4). Lower = more faithful to base, higher = more detail/change.}
 \item{upscale_factor}{ESRGAN upscale factor (default 4, only used with upscaler)}
 
 \item{vae_mode}{VAE processing mode: \code{"normal"} (no tiling),
-\code{"tiled"} (always tile), or \code{"auto"} (tile when
-\code{width * height > vae_auto_threshold}). Default \code{"auto"}.}
+\code{"tiled"} (always tile), or \code{"auto"} (VRAM-aware: queries free
+GPU memory via Vulkan and compares against estimated peak VAE usage;
+tiles only when VRAM is insufficient). Default \code{"auto"}.}
 
-\item{vae_auto_threshold}{Pixel area threshold for \code{vae_mode = "auto"}.
-Tiling activates when \code{width * height} exceeds this value.
-Default \code{1048576L} (1024x1024 pixels). Adjust for your VRAM budget.}
+\item{vae_auto_threshold}{Pixel area fallback threshold for
+\code{vae_mode = "auto"} when VRAM query is unavailable (no Vulkan, CPU
+backend, etc.). Tiling activates when \code{width * height} exceeds this
+value. Default \code{1048576L} (1024x1024 pixels).}
 
 \item{vae_tile_size}{Tile size in latent pixels for tiled VAE (default 64).
 Ignored when \code{vae_tile_rel_x}/\code{vae_tile_rel_y} are set.}
 
 \item{vae_tile_overlap}{Overlap ratio between tiles, 0.0-0.5 (default 0.25)}
+
+\item{cache_mode}{Step caching mode: \code{"off"} (default), \code{"easy"}
+(EasyCache — skips redundant denoising steps), or \code{"ucache"} (UCache).
+Can speed up sampling 20-40\% with minor quality impact.}
+
+\item{cache_config}{Optional fine-tuned cache config from
+\code{\link{sd_cache_params}}. Overrides \code{cache_mode} when provided.}
 }
 \value{
 SD image (single image, not list)

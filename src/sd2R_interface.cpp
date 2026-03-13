@@ -391,6 +391,17 @@ Rcpp::List sd_generate_image(SEXP ctx_sexp, Rcpp::List params) {
             p.tiled_sample_params.tile_overlap = Rcpp::as<float>(params["sample_tile_overlap"]);
     }
 
+    // Step caching (EasyCache / UCache / etc.)
+    if (params.containsElementNamed("cache_mode")) {
+        p.cache.mode = static_cast<sd_cache_mode_t>(Rcpp::as<int>(params["cache_mode"]));
+        if (params.containsElementNamed("cache_threshold"))
+            p.cache.reuse_threshold = Rcpp::as<float>(params["cache_threshold"]);
+        if (params.containsElementNamed("cache_start"))
+            p.cache.start_percent = Rcpp::as<float>(params["cache_start"]);
+        if (params.containsElementNamed("cache_end"))
+            p.cache.end_percent = Rcpp::as<float>(params["cache_end"]);
+    }
+
     // Init image (for img2img)
     // Note: mask_image is left empty (sd_image_t{}) — stable-diffusion.cpp
     // creates an all-white mask at the correct aligned size if none is provided.

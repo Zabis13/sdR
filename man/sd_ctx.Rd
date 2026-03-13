@@ -19,7 +19,7 @@ sd_ctx(
   free_params_immediately = FALSE,
   keep_clip_on_cpu = FALSE,
   keep_vae_on_cpu = FALSE,
-  diffusion_flash_attn = FALSE,
+  diffusion_flash_attn = TRUE,
   rng_type = RNG_TYPE$CUDA,
   prediction = NULL,
   lora_apply_mode = LORA_APPLY_MODE$AUTO,
@@ -65,7 +65,9 @@ not reuse the context. Default is FALSE.}
 
 \item{keep_vae_on_cpu}{Keep VAE on CPU even when using GPU}
 
-\item{diffusion_flash_attn}{Enable flash attention for diffusion model}
+\item{diffusion_flash_attn}{Enable flash attention for diffusion model
+(default TRUE). Set to FALSE if you experience issues with specific
+GPU drivers or backends.}
 
 \item{rng_type}{RNG type (see \code{RNG_TYPE})}
 

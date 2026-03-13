@@ -65,9 +65,10 @@ Use -1 for random.}
 \item{eta}{Eta parameter for DDIM-like samplers}
 
 \item{vae_mode}{VAE tiling mode for the harmonization pass
-(default \code{"auto"}, see \code{\link{sd_txt2img}}).}
+(default \code{"auto"}: VRAM-aware, see \code{\link{sd_txt2img}}).}
 
-\item{vae_auto_threshold}{Pixel area threshold for auto VAE tiling}
+\item{vae_auto_threshold}{Pixel area fallback threshold for auto VAE tiling
+when VRAM query is unavailable}
 
 \item{vae_tile_size}{Tile size for VAE tiling (default 64)}
 

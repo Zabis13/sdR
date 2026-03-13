@@ -2,7 +2,7 @@
 % Please edit documentation in R/pipeline.R
 \name{.resolve_device_layout}
 \alias{.resolve_device_layout}
-\title{Get native tile size for a model type}
+\title{Resolve device layout preset to concrete GPU indices}
 \usage{
 .resolve_device_layout(
   layout,
@@ -25,23 +25,11 @@
 \item{keep_clip_on_cpu}{Existing keep_clip_on_cpu flag}
 
 \item{keep_vae_on_cpu}{Existing keep_vae_on_cpu flag}
-
-\item{model_type}{One of "sd1", "sd2", "sdxl", "flux", "sd3"}
 }
 \value{
-Integer tile size in pixels
-
 List with diffusion, clip, vae (GPU indices), clip_on_cpu, vae_on_cpu
 }
 \description{
-Get native tile size for a model type
+Resolve device layout preset to concrete GPU indices
 }
-\keyword{GPU}
-\keyword{Resolve}
-\keyword{concrete}
-\keyword{device}
-\keyword{indices}
 \keyword{internal}
-\keyword{layout}
-\keyword{preset}
-\keyword{to}

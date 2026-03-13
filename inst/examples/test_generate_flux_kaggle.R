@@ -51,13 +51,14 @@ imgs_flux <- sd_generate(
   sample_steps = 10L, seed = 42L,
   sample_method = SAMPLE_METHOD$EULER,
   scheduler = SCHEDULER$DISCRETE,
-  vae_mode = "tiled"
+  vae_mode = "tiled",
+
 )
 sd_profile_stop()
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
             length(imgs_flux), imgs_flux[[1]]$width, imgs_flux[[1]]$height, elapsed))
-print(sd_profile_summary())
+print(sd_profile_summary(sd_profile_get()))
 show_image(imgs_flux[[1]], "sdR_flux_768.png")
 
 # --- 2. Flux 1024x1024, forced tiled VAE ---
@@ -74,7 +75,8 @@ hyperdetailed, street photography style, golden hour lighting",
   sample_steps = 10L, seed = 42L,
   sample_method = SAMPLE_METHOD$EULER,
   scheduler = SCHEDULER$DISCRETE,
-  vae_mode = "tiled"
+  vae_mode = "tiled",
+
 )
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
@@ -94,13 +96,14 @@ cinematic, shot on Sony A7R, f/8, sharp focus, high detail",
   sample_steps = 10L, seed = 42L,
   hr_strength = 0.4,
   sample_method = SAMPLE_METHOD$EULER,
-  scheduler = SCHEDULER$DISCRETE
+  scheduler = SCHEDULER$DISCRETE,
+
 )
 sd_profile_stop()
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
             length(imgs_flux_hr), imgs_flux_hr[[1]]$width, imgs_flux_hr[[1]]$height, elapsed))
-print(sd_profile_summary())
+print(sd_profile_summary(sd_profile_get()))
 show_image(imgs_flux_hr[[1]], "sdR_flux_highres_panorama.png")
 
 # --- 4. Flux img2img 768x768 (direct) ---
@@ -114,7 +117,8 @@ imgs_flux_i2i <- sd_generate(
   sample_steps = 10L, seed = 42L,
   sample_method = SAMPLE_METHOD$EULER,
   scheduler = SCHEDULER$DISCRETE,
-  vae_mode = "tiled"
+  vae_mode = "tiled",
+
 )
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
@@ -135,7 +139,8 @@ street photography, shot on Sony A7R, f/8, sharp focus",
   sample_steps = 10L, seed = 42L,
   sample_method = SAMPLE_METHOD$EULER,
   scheduler = SCHEDULER$DISCRETE,
-  vae_mode = "tiled"
+  vae_mode = "tiled",
+
 )
 elapsed <- (proc.time() - t0)[["elapsed"]]
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",

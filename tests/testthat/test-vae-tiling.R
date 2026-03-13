@@ -85,3 +85,50 @@ test_that("vae_mode='auto' activates for 4096x4096 decode scenario", {
   # Area = 16777216, well above default threshold
   expect_true(sd2R:::.resolve_vae_tiling("auto", NULL, 4096, 4096, 1048576L))
 })
+
+# --- .estimate_vae_vram tests ---
+
+test_that(".estimate_vae_vram returns correct values for sd1", {
+  # 512x512 * 2048 * 1 = 536870912 (~512 MB)
+  expect_equal(sd2R:::.estimate_vae_vram(512, 512, "sd1", 1L), 512 * 512 * 2048)
+})
+
+test_that(".estimate_vae_vram returns correct values for flux", {
+  # 1024x1024 * 4096 * 1 = 4294967296 (~4 GB)
+  expect_equal(sd2R:::.estimate_vae_vram(1024, 1024, "flux", 1L), 1024 * 1024 * 4096)
+})
+
+test_that(".estimate_vae_vram scales with batch", {
+  single <- sd2R:::.estimate_vae_vram(512, 512, "sd1", 1L)
+  double <- sd2R:::.estimate_vae_vram(512, 512, "sd1", 2L)
+  expect_equal(double, single * 2)
+})
+
+test_that(".estimate_vae_vram sdxl uses same factor as flux", {
+  expect_equal(
+    sd2R:::.estimate_vae_vram(512, 512, "sdxl", 1L),
+    sd2R:::.estimate_vae_vram(512, 512, "flux", 1L)
+  )
+})
+
+# --- VRAM-aware auto mode tests ---
+
+test_that("auto mode with ctx uses VRAM when available", {
+  skip_if_not(sd2R::sd_vulkan_device_count() > 0, "No Vulkan device")
+
+  # Create a fake ctx with attributes
+  ctx <- list()
+  attr(ctx, "vram_device") <- 0L
+  attr(ctx, "model_type") <- "sd1"
+
+  # Small image with plenty of VRAM should not tile
+  # 64x64 * 2048 = ~8 MB — any GPU has more than that
+  result <- sd2R:::.resolve_vae_tiling("auto", NULL, 64, 64, 1048576L, ctx = ctx)
+  expect_false(result)
+})
+
+test_that("auto mode falls back to threshold when ctx is NULL", {
+  # Without ctx, uses pixel-area threshold
+  expect_true(sd2R:::.resolve_vae_tiling("auto", NULL, 2048, 2048, 1048576L))
+  expect_false(sd2R:::.resolve_vae_tiling("auto", NULL, 512, 512, 1048576L))
+})

@@ -24,14 +24,14 @@ R  →  sd2R  →  ggmlR  →  ggml  →  Vulkan  →  GPU
 
 - **Unified `sd_generate()`** — single entry point for all generation modes. Automatically selects the optimal strategy (direct, tiled sampling, or highres fix) based on output resolution and available VRAM (`vram_gb` parameter in `sd_ctx()`). Users don't need to think about tiling at all.
 - **CRAN-ready defaults**: `verbose = FALSE` by default — no console output unless explicitly enabled. Cross-platform build system with `configure`/`configure.win` generating `Makevars` from templates.
-- **VRAM-aware auto-routing**: estimates VRAM from resolution and routes to direct generation (fits in VRAM), highres fix (txt2img + upscale + tiled img2img, preferred for coherent large images), or tiled sampling (MultiDiffusion fallback). Set `vram_gb` once in `sd_ctx()`.
+- **VRAM-aware auto-routing**: queries free GPU memory at runtime and routes to direct generation (fits in VRAM), highres fix (txt2img + upscale + tiled img2img, preferred for coherent large images), or tiled sampling (MultiDiffusion fallback). VAE tiling is also VRAM-aware — enabled automatically only when free memory is insufficient for the given resolution. Set `vram_gb` in `sd_ctx()` to override auto-detection.
 - **Multi-GPU data parallelism**: `sd_generate_multi_gpu()` distributes prompts across Vulkan GPUs via `callr`, one process per GPU, with progress reporting.
 - **Multi-GPU model parallelism**: `device_layout` parameter in `sd_ctx()` distributes sub-models across multiple Vulkan GPUs within a single process. Presets: `"mono"` (all on one GPU), `"split_encoders"` (CLIP/T5 on GPU 1, diffusion + VAE on GPU 0), `"split_vae"` (CLIP/T5 + VAE on GPU 1, diffusion on GPU 0), `"encoders_cpu"` (text encoders on CPU). Manual override via `diffusion_gpu`, `clip_gpu`, `vae_gpu`.
 - **Profiling**: built-in per-stage timing via `sd_profile_start()` / `sd_profile_stop()` / `sd_profile_summary()`. Tracks model loading, text encoding (with CLIP/T5 breakdown), sampling, and VAE decode/encode stages.
 - **Text-to-image** generation supporting Stable Diffusion 1.x, 2.x, SDXL, and Flux models with typical generations taking a few seconds on Vulkan-enabled GPUs.
 - **Image-to-image** workflows with noise strength control and reuse of the same denoising pipeline as text-to-image. Requires `vae_decode_only = FALSE` in context.
 - **Optional upscaling** using a dedicated upscaler context managed entirely in C++ and exposed to R through external pointers.
-- **Tiled VAE** for high-resolution images (2K, 4K+) with bounded VRAM usage. `vae_mode = "auto"` enables tiling automatically when image area exceeds a configurable threshold. Supports per-axis relative tile sizing (`vae_tile_rel_x`, `vae_tile_rel_y`) for non-square aspect ratios.
+- **VRAM-aware Tiled VAE** for high-resolution images (2K, 4K+) with bounded VRAM usage. `vae_mode = "auto"` (default) queries free GPU memory before VAE decode and enables tiling only when estimated peak usage exceeds available VRAM (with a 50 MB safety reserve). Falls back to a pixel-area threshold (`vae_auto_threshold`) when Vulkan memory query is unavailable (CPU backend, no GPU). Supports per-axis relative tile sizing (`vae_tile_rel_x`, `vae_tile_rel_y`) for non-square aspect ratios.
 - **Tiled diffusion sampling** (MultiDiffusion): at each denoising step the latent is split into overlapping tiles, each denoised independently, and merged with Gaussian weighting. VRAM usage scales with tile size, not output resolution.
 - **Highres Fix**: classic two-pass pipeline — generates base image at native model resolution, upscales (bilinear or ESRGAN), then refines with tiled img2img at low denoising strength. Produces coherent high-resolution images (2K, 4K+) with global composition preserved.
 - **Image utilities** in R: saving generated images to PNG, converting between internal tensors and R raw vectors, and simple inspection of output tensors.
@@ -108,7 +108,9 @@ R CMD INSTALL .
 
 ## Benchmarks
 
-FLUX.1-dev Q4_K_S with CLIP-L, T5-XXL text encoders, and VAE. `sample_steps = 10`.
+### FLUX.1-dev Q4_K_S — 10 steps
+
+CLIP-L + T5-XXL text encoders, VAE. `sample_steps = 10`.
 
 | Test | AMD RX 9070 (16 GB) | Tesla P100 (16 GB) | 2x Tesla T4 (16 GB) |
 |---|---|---|---|
@@ -118,6 +120,24 @@ FLUX.1-dev Q4_K_S with CLIP-L, T5-XXL text encoders, and VAE. `sample_steps = 10
 | 4. img2img 768x768 direct | 29.6 s | 51.0 s | 73.5 s |
 | 5. 1024x1024 direct | 163.0 s | 152.2 s | 243.3 s |
 | 6. Multi-GPU 4 prompts | -- | -- | 284.9 s (4 img) |
+
+### FLUX.1-dev Q4_K_S — 25 steps
+
+CLIP-L + T5-XXL (Q5_K_M) text encoders, VAE. `sample_steps = 25`.
+
+| Test | AMD RX 9070 (16 GB) | 2x Tesla T4 (16 GB) |
+|---|---|---|
+| 768x768 direct | 110.8 s | -- |
+| 1024x1024 direct | -- | 553.1 s |
+
+### Model size comparison
+
+| | SD 1.5 | Flux Q4_K_S |
+|---|---|---|
+| Diffusion params | ~860 MB | ~6.5 GB |
+| Text encoders | CLIP ~240 MB | CLIP-L + T5-XXL ~3.9 GB |
+| Sampling per step (768x768) | ~0.1–0.3 s | ~3.9 s |
+| Architecture | UNet | MMDiT (57 blocks) |
 
 ## Examples
 

@@ -4,7 +4,16 @@
 \alias{.resolve_vae_tiling}
 \title{Resolve VAE tiling mode to boolean}
 \usage{
-.resolve_vae_tiling(vae_mode, vae_tiling, width, height, vae_auto_threshold)
+.resolve_vae_tiling(
+  vae_mode,
+  vae_tiling,
+  width,
+  height,
+  vae_auto_threshold,
+  ctx = NULL,
+  batch = 1L,
+  system_reserve = 50 * 1024^2
+)
 }
 \arguments{
 \item{vae_mode}{One of "normal", "tiled", "auto"}
@@ -15,12 +24,22 @@
 
 \item{height}{Image height in pixels}
 
-\item{vae_auto_threshold}{Pixel area threshold for auto mode}
+\item{vae_auto_threshold}{Pixel area threshold — fallback for auto mode
+when VRAM query fails}
+
+\item{ctx}{SD context (used to read device index and model_type).
+NULL disables VRAM-aware logic.}
+
+\item{batch}{Batch size for VRAM estimation (default 1)}
+
+\item{system_reserve}{Bytes to keep free as safety margin (default 50 MB)}
 }
 \value{
 Logical, TRUE if tiling should be enabled
 }
 \description{
-Resolve VAE tiling mode to boolean
+In \code{"auto"} mode, queries free VRAM from the Vulkan backend and
+compares against \code{\link{.estimate_vae_vram}}. Falls back to the
+pixel-area \code{vae_auto_threshold} when VRAM query is unavailable.
 }
 \keyword{internal}

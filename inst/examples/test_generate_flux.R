@@ -12,8 +12,9 @@ ctx <- sd_ctx(
   clip_l_path = file.path(models_dir, "clip_l.safetensors"),
   t5xxl_path = file.path(models_dir, "t5-v1_1-xxl-encoder-Q5_K_M.gguf"),
   n_threads = 4L, model_type = "flux",
-  vae_decode_only = FALSE, verbose = FALSE
+  vae_decode_only = FALSE, verbose = TRUE
 )
+
 
 # --- 1. Basic 768x768 (direct) ---
 cat("\n--- 1. Basic 768x768 -> direct ---\n")
@@ -21,12 +22,13 @@ sd_profile_start()
 t0 <- proc.time()
 imgs <- sd_generate(
   ctx,
-  prompt = "a cat sitting on a chair, oil painting",
+  prompt = "a cat sitting on a chair, oil painting, foto, HDR",
   width = 768L, height = 768L,
-  sample_steps = 8L, seed = 42L,
+  sample_steps = 10L, seed = 40L,
   sample_method = SAMPLE_METHOD$EULER,
   scheduler = SCHEDULER$DISCRETE
 )
+
 elapsed <- (proc.time() - t0)[["elapsed"]]
 sd_profile_stop()
 cat(sprintf("Generated %d image(s): %dx%d in %.1fs\n",
