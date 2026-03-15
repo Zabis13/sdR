@@ -72,6 +72,12 @@ reserve). Default \code{"auto"}.}
 \item{vae_tile_size}{Tile size for VAE tiling (default 64)}
 
 \item{vae_tile_overlap}{Overlap for VAE tiling (default 0.25)}
+
+\item{cache_mode}{Step caching mode: \code{"off"} (default), \code{"easy"}
+(EasyCache), or \code{"ucache"} (UCache).}
+
+\item{cache_config}{Optional fine-tuned cache config from
+\code{\link{sd_cache_params}}.}
 }
 \value{
 List of SD images (or single image for highres fix path).

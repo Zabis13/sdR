@@ -1,7 +1,7 @@
 library(sd2R)
 
 cat("=== sd2R sd_generate() Flux Test ===\n\n")
-print(sd_system_info())
+#print(sd_system_info())
 
 models_dir <- "/mnt/Data2/DS_projects/sd_models"
 
@@ -12,7 +12,7 @@ ctx <- sd_ctx(
   clip_l_path = file.path(models_dir, "clip_l.safetensors"),
   t5xxl_path = file.path(models_dir, "t5-v1_1-xxl-encoder-Q5_K_M.gguf"),
   n_threads = 4L, model_type = "flux",
-  vae_decode_only = FALSE, verbose = TRUE
+  vae_decode_only = FALSE, verbose = FALSE
 )
 
 
@@ -37,8 +37,5 @@ sd_save_image(imgs[[1]], "/tmp/sd2R_flux_768.png")
 cat("Saved: /tmp/sd2R_flux_768.png\n")
 print(sd_profile_summary(sd_profile_get()))
 
-# Cleanup
-rm(ctx, imgs)
-gc()
 
 cat("\n=== Done ===\n")

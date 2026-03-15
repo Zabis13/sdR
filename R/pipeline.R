@@ -202,6 +202,10 @@ sd_ctx <- function(model_path = NULL,
 #'   reserve). Default \code{"auto"}.
 #' @param vae_tile_size Tile size for VAE tiling (default 64)
 #' @param vae_tile_overlap Overlap for VAE tiling (default 0.25)
+#' @param cache_mode Step caching mode: \code{"off"} (default), \code{"easy"}
+#'   (EasyCache), or \code{"ucache"} (UCache).
+#' @param cache_config Optional fine-tuned cache config from
+#'   \code{\link{sd_cache_params}}.
 #' @return List of SD images (or single image for highres fix path).
 #' @export
 #' @examples
