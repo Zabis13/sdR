@@ -114,4 +114,3 @@ imgs <- sd_txt2img_tiled(ctx, "a vast mountain landscape",
 sd_save_image(imgs[[1]], "landscape.png")
 }
 }
-\keyword{internal}

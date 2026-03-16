@@ -9,6 +9,7 @@
 #'   by \code{sd_txt2img()} or \code{sd_img2img()}. Can also be a 3D numeric
 #'   array [height, width, channels] with values in [0, 1].
 #' @param path Output file path (should end in .png)
+#' @return The file path (invisibly).
 #' @export
 sd_save_image <- function(image, path) {
   if (!requireNamespace("png", quietly = TRUE)) {

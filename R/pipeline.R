@@ -634,7 +634,7 @@ sd_img2img <- function(ctx,
 #' @param sample_tile_overlap Overlap between tiles as fraction of tile size,
 #'   0.0-0.5 (default 0.25).
 #' @return List of SD images
-#' @keywords internal
+#' @export
 #' @examples
 #' \dontrun{
 #' ctx <- sd_ctx("sd15.safetensors", model_type = "sd1")
@@ -969,7 +969,7 @@ sd_highres_fix <- function(ctx,
 #' @param vae_tile_size Tile size for VAE tiling (default 64)
 #' @param vae_tile_overlap Overlap for VAE tiling (default 0.25)
 #' @return SD image (list with width, height, channel, data)
-#' @keywords internal
+#' @export
 #' @examples
 #' \dontrun{
 #' ctx <- sd_ctx("sd15.safetensors", model_type = "sd1")

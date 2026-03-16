@@ -13,6 +13,9 @@ array [height, width, channels] with values in [0, 1].}
 
 \item{path}{Output file path (should end in .png)}
 }
+\value{
+The file path (invisibly).
+}
 \description{
 Save SD image to PNG file
 }
