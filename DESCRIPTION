@@ -1,7 +1,7 @@
 Package: sd2R
 Type: Package
 Title: Stable Diffusion Image Generation
-Version: 0.1.7
+Version: 0.1.8
 Authors@R: c(
     person("Yuri", "Baramykov",
         email = "lbsbmsu@mail.ru",
@@ -23,22 +23,58 @@ Authors@R: c(
         comment = "Contributor to stable-diffusion.cpp"),
     person("akleine",
         role = "ctb",
-        comment = "Contributor to stable-diffusion.cpp")
+        comment = "Contributor to stable-diffusion.cpp"),
+    person("Martin", "Raiber",
+        role = "cph",
+        comment = "Copyright holder in miniz.h"),
+    person("Rich", "Geldreich",
+        role = "cph",
+        comment = "Author of miniz.h"),
+    person("RAD Game Tools",
+        role = "cph",
+        comment = "Copyright holder in miniz.h"),
+    person("Valve Software",
+        role = "cph",
+        comment = "Copyright holder in miniz.h"),
+    person("Alex", "Evans",
+        role = "cph",
+        comment = "PNG writing code in miniz.h"),
+    person("Sean", "Barrett",
+        role = "cph",
+        comment = "Author of stb_image.h"),
+    person("Jorge L", "Rodriguez",
+        role = "cph",
+        comment = "Author of stb_image_resize.h"),
+    person("Niels", "Lohmann",
+        role = "cph",
+        comment = "Author of json.hpp (nlohmann/json)"),
+    person("Susumu", "Yata",
+        role = "cph",
+        comment = "Author of darts.h (darts-clone)"),
+    person("Kuba", "Podgorski",
+        role = "cph",
+        comment = "Author of zip.h/zip.c (kuba--/zip)"),
+    person("Meta Platforms Inc.",
+        role = "cph",
+        comment = "rng_mt19937.hpp (ported from PyTorch)"),
+    person("Google Inc.",
+        role = "cph",
+        comment = "Sentencepiece tokenizer code in t5.hpp")
     )
 Description: Provides Stable Diffusion image generation in R using the 'ggmlR'
     tensor library. Supports text-to-image and image-to-image generation with
     multiple model versions (SD 1.x, SD 2.x, 'SDXL', Flux). Implements the
     full inference pipeline including CLIP text encoding, 'UNet' noise removal,
-    and 'VAE' encoding/decoding. Unified 'sd_generate()' entry point with
+    and 'VAE' encoding/decoding. Unified sd_generate() entry point with
     automatic strategy selection (direct, tiled sampling, high-resolution fix)
     based on output resolution and available 'VRAM'. High-resolution generation
     (2K, 4K+) via tiled 'VAE' decoding, tiled diffusion sampling
     ('MultiDiffusion'), and classic two-pass refinement (text-to-image, then
     upscale with image-to-image). Multi-GPU parallel generation via
-    'sd_generate_multi_gpu()'. Multi-GPU model parallelism via 'device_layout'
-    in 'sd_ctx()': distribute diffusion, text encoders, and 'VAE' across
-    separate 'Vulkan' devices. Built-in profiling ('sd_profile_start()',
-    'sd_profile_summary()') for per-stage timing of text encoding, sampling,
+    sd_generate_multi_gpu(). Multi-GPU model parallelism via 'device_layout'
+    in sd_ctx(): distribute diffusion, text encoders, and 'VAE' across
+    separate 'Vulkan' devices. Built-in profiling (sd_profile_start(),
+    sd_profile_summary()) for per-stage timing of text encoding, sampling,
     and 'VAE' decode. Supports CPU and 'Vulkan' GPU. No 'Python' or external
     API dependencies required. Cross-platform: Linux, macOS, Windows.
 SystemRequirements: GNU make, curl or wget (for downloading vocabulary files during installation)

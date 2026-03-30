@@ -3,6 +3,9 @@
 \name{sd_profile_start}
 \alias{sd_profile_start}
 \title{Start profiling}
+\value{
+No return value, called for side effects.
+}
 \description{
 Clears the event buffer and begins capturing stage timings from sd.cpp.
 }

@@ -290,6 +290,7 @@ sd_load_model <- function(id, ...) {
 #' in the registry and can be reloaded with \code{\link{sd_load_model}}.
 #'
 #' @param id Model identifier
+#' @return No return value, called for side effects.
 #' @export
 sd_unload_model <- function(id) {
   if (id %in% names(.mm_env$contexts)) {
@@ -307,6 +308,7 @@ sd_unload_model <- function(id) {
 #'
 #' Removes all cached contexts. Registry is preserved.
 #'
+#' @return No return value, called for side effects.
 #' @export
 sd_unload_all <- function() {
   n <- length(.mm_env$contexts)
@@ -323,6 +325,7 @@ sd_unload_all <- function() {
 #' it from memory if loaded.
 #'
 #' @param id Model identifier
+#' @return No return value, called for side effects.
 #' @export
 sd_remove_model <- function(id) {
   # Unload if loaded

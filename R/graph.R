@@ -90,6 +90,7 @@ sd_run_pipeline <- function(pipeline, ctx, upscaler_ctx = NULL,
 #'
 #' @param pipeline An \code{sd_pipeline} object.
 #' @param path File path (should end in \code{.json}).
+#' @return The file path, invisibly.
 #' @export
 sd_save_pipeline <- function(pipeline, path) {
   if (!inherits(pipeline, "sd_pipeline")) {

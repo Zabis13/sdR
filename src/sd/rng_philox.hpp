@@ -6,8 +6,9 @@
 
 #include "rng.hpp"
 
-// RNG imitiating torch cuda randn on CPU.
-// Port from: https://github.com/AUTOMATIC1111/stable-diffusion-webui/blob/5ef669de080814067961f28357256e8fe27544f4/modules/rng_philox.py
+// RNG imitating torch cuda randn on CPU.
+// Philox 4x32 algorithm, see: Salmon et al. (2011), "Parallel Random Numbers: As Easy as 1, 2, 3", SC'11
+// Constants from the original publication. Box-Muller transform for normal distribution.
 class PhiloxRNG : public RNG {
 private:
     uint64_t seed;

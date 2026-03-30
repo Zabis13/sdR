@@ -518,6 +518,7 @@ sd_api_start <- function(model_path = NULL,
 #'
 #' Stops the running plumber server and unloads all models.
 #'
+#' @return No return value, called for side effects.
 #' @export
 sd_api_stop <- function() {
   if (!is.null(.api_env$pr)) {

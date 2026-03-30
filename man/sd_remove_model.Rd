@@ -9,6 +9,9 @@ sd_remove_model(id)
 \arguments{
 \item{id}{Model identifier}
 }
+\value{
+No return value, called for side effects.
+}
 \description{
 Removes the model entry from \code{~/.sd2R/models.json} and unloads
 it from memory if loaded.

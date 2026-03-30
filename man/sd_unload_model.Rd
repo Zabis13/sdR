@@ -9,6 +9,9 @@ sd_unload_model(id)
 \arguments{
 \item{id}{Model identifier}
 }
+\value{
+No return value, called for side effects.
+}
 \description{
 Removes the cached context for the given model id. The model remains
 in the registry and can be reloaded with \code{\link{sd_load_model}}.

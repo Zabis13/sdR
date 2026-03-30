@@ -3,6 +3,9 @@
 \name{sd_profile_stop}
 \alias{sd_profile_stop}
 \title{Stop profiling}
+\value{
+No return value, called for side effects.
+}
 \description{
 Stops capturing stage events. Call \code{\link{sd_profile_get}} to retrieve.
 }

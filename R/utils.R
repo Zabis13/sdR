@@ -44,6 +44,7 @@ print.sd_system_info <- function(x, ...) {
 #'
 #' Clears the event buffer and begins capturing stage timings from sd.cpp.
 #'
+#' @return No return value, called for side effects.
 #' @export
 #' @name sd_profile_start
 NULL
@@ -52,6 +53,7 @@ NULL
 #'
 #' Stops capturing stage events. Call \code{\link{sd_profile_get}} to retrieve.
 #'
+#' @return No return value, called for side effects.
 #' @export
 #' @name sd_profile_stop
 NULL

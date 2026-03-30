@@ -6,6 +6,9 @@
 \usage{
 sd_api_stop()
 }
+\value{
+No return value, called for side effects.
+}
 \description{
 Stops the running plumber server and unloads all models.
 }

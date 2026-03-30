@@ -6,6 +6,9 @@
 \usage{
 sd_unload_all()
 }
+\value{
+No return value, called for side effects.
+}
 \description{
 Removes all cached contexts. Registry is preserved.
 }

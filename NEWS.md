@@ -1,3 +1,15 @@
+# sd2R 0.1.8
+
+## Bug Fixes
+* Fixed `undefined symbol: ggml_backend_vk_get_device_count` load error on
+  systems where ggmlR was built without Vulkan support (e.g. CRAN servers).
+  The `configure` script now verifies that the Vulkan backend symbol is
+  actually present in `libggml.a` before enabling `-DSD_USE_VULKAN`. Previously,
+  `ggml_vulkan_status()` could report "AVAILABLE" while the symbol was absent
+  from the static library, causing `dyn.load()` to fail at package load time.
+
+---
+
 # sd2R 0.1.7
 
 ## Multi-GPU Model Parallelism

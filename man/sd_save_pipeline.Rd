@@ -11,6 +11,9 @@ sd_save_pipeline(pipeline, path)
 
 \item{path}{File path (should end in \code{.json}).}
 }
+\value{
+The file path, invisibly.
+}
 \description{
 Save pipeline to JSON
 }
