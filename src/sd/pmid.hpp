@@ -84,8 +84,8 @@ public:
     struct ggml_tensor* reshape_tensor(struct ggml_context* ctx,
                                        struct ggml_tensor* x,
                                        int heads) {
-        int64_t ne[4];
-        for (int i = 0; i < 4; ++i)
+        int64_t ne[GGML_MAX_DIMS];
+        for (int i = 0; i < GGML_MAX_DIMS; ++i)
             ne[i] = x->ne[i];
         x = ggml_reshape_4d(ctx, x, x->ne[0] / heads, heads, x->ne[1], x->ne[2]);
         x = ggml_cont(ctx, ggml_permute(ctx, x, 0, 2, 1, 3));
@@ -107,8 +107,8 @@ public:
         //     shape (b, n1, D)
         // latent (torch.Tensor): latent features
         //     shape (b, n2, D)
-        int64_t ne[4];
-        for (int i = 0; i < 4; ++i)
+        int64_t ne[GGML_MAX_DIMS];
+        for (int i = 0; i < GGML_MAX_DIMS; ++i)
             ne[i] = latents->ne[i];
 
         auto norm1 = std::dynamic_pointer_cast<LayerNorm>(blocks["norm1"]);

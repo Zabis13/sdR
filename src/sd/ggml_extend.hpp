@@ -337,8 +337,8 @@ __STATIC_INLINE__ ggml_tensor* load_tensor_from_file(ggml_context* ctx, const st
     }
 
     int32_t nelements = 1;
-    int32_t ne[4]     = {1, 1, 1, 1};
-    for (int i = 0; i < n_dims; ++i) {
+    int32_t ne[GGML_MAX_DIMS] = {1, 1, 1, 1, 1};
+    for (int i = 0; i < n_dims && i < GGML_MAX_DIMS; ++i) {
         file.read(reinterpret_cast<char*>(&ne[i]), sizeof(ne[i]));
         nelements *= ne[i];
     }
@@ -708,7 +708,7 @@ __STATIC_INLINE__ struct ggml_tensor* ggml_ext_slice(struct ggml_context* ctx,
                                                      int64_t start,
                                                      int64_t end,
                                                      bool cont = true) {
-    GGML_ASSERT(dim >= 0 && dim < 4);
+    GGML_ASSERT(dim >= 0 && dim < GGML_MAX_DIMS);
     if (x->ne[dim] == 1) {
         return x;
     }
@@ -723,7 +723,7 @@ __STATIC_INLINE__ struct ggml_tensor* ggml_ext_slice(struct ggml_context* ctx,
     GGML_ASSERT(end > start && end <= x->ne[dim]);
 
     int64_t slice_size  = end - start;
-    int64_t slice_ne[4] = {x->ne[0], x->ne[1], x->ne[2], x->ne[3]};
+    int64_t slice_ne[GGML_MAX_DIMS] = {x->ne[0], x->ne[1], x->ne[2], x->ne[3], x->ne[4]};
     slice_ne[dim]       = slice_size;
 
     x = ggml_view_4d(ctx, x,
@@ -743,13 +743,13 @@ __STATIC_INLINE__ std::vector<struct ggml_tensor*> ggml_ext_chunk(struct ggml_co
                                                                   int num,
                                                                   int64_t dim,
                                                                   bool cont = true) {
-    GGML_ASSERT(dim >= 0 && dim < 4);
+    GGML_ASSERT(dim >= 0 && dim < GGML_MAX_DIMS);
     GGML_ASSERT(x->ne[dim] % num == 0);
 
     std::vector<struct ggml_tensor*> chunks;
     int64_t chunk_size  = x->ne[dim] / num;
     int64_t stride      = chunk_size * x->nb[dim];
-    int64_t chunk_ne[4] = {x->ne[0], x->ne[1], x->ne[2], x->ne[3]};
+    int64_t chunk_ne[GGML_MAX_DIMS] = {x->ne[0], x->ne[1], x->ne[2], x->ne[3], x->ne[4]};
     chunk_ne[dim]       = chunk_size;
     for (int i = 0; i < num; i++) {
         auto chunk = ggml_view_4d(
