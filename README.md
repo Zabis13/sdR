@@ -37,6 +37,20 @@ R  →  sd2R  →  ggmlR  →  ggml  →  Vulkan  →  GPU
 - **Image utilities** in R: saving generated images to PNG, converting between internal tensors and R raw vectors, and simple inspection of output tensors.
 - **System introspection** via `sd_system_info()`, reporting GGML/Vulkan capabilities as detected by ggmlR at build time.
 - **Pipeline graph API**: `sd_pipeline()` + `sd_node()` for composable, sequential multi-step workflows (txt2img → upscale → img2img → save). Pipelines are serializable to JSON via `sd_save_pipeline()` / `sd_load_pipeline()`.
+- **Shiny GUI**: `sd_app()` launches an interactive web interface with auto-detection of model architecture, non-blocking async generation (C++ `std::thread`), live progress bar with ETA, and automatic role assignment for multi-file models (Flux, SD3).
+
+## Shiny GUI
+
+Launch an interactive web interface for image generation:
+
+```r
+sd_app(model_dir = "/path/to/models")
+```
+
+Features:
+- Auto-detects model architecture (Flux, SD3, SDXL, SD1/2) and assigns component roles (diffusion, VAE, CLIP, T5)
+- Non-blocking generation with live progress bar and ETA
+- Prevents incompatible model combinations
 
 ## Pipeline Example
 

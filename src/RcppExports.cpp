@@ -10,6 +10,44 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// sd_set_progress_file
+void sd_set_progress_file(std::string path);
+RcppExport SEXP _sd2R_sd_set_progress_file(SEXP pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type path(pathSEXP);
+    sd_set_progress_file(path);
+    return R_NilValue;
+END_RCPP
+}
+// sd_clear_progress_file
+void sd_clear_progress_file();
+RcppExport SEXP _sd2R_sd_clear_progress_file() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    sd_clear_progress_file();
+    return R_NilValue;
+END_RCPP
+}
+// sd_set_log_file
+void sd_set_log_file(std::string path);
+RcppExport SEXP _sd2R_sd_set_log_file(SEXP pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type path(pathSEXP);
+    sd_set_log_file(path);
+    return R_NilValue;
+END_RCPP
+}
+// sd_clear_log_file
+void sd_clear_log_file();
+RcppExport SEXP _sd2R_sd_clear_log_file() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    sd_clear_log_file();
+    return R_NilValue;
+END_RCPP
+}
 // sd_set_verbose
 void sd_set_verbose(bool verbose);
 RcppExport SEXP _sd2R_sd_set_verbose(SEXP verboseSEXP) {
@@ -76,6 +114,37 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type ctx_sexp(ctx_sexpSEXP);
     sd_destroy_context(ctx_sexp);
     return R_NilValue;
+END_RCPP
+}
+// sd_create_context_async
+bool sd_create_context_async(Rcpp::List params);
+RcppExport SEXP _sd2R_sd_create_context_async(SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_create_context_async(params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sd_create_context_poll
+Rcpp::List sd_create_context_poll();
+RcppExport SEXP _sd2R_sd_create_context_poll() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(sd_create_context_poll());
+    return rcpp_result_gen;
+END_RCPP
+}
+// sd_create_context_result
+SEXP sd_create_context_result();
+RcppExport SEXP _sd2R_sd_create_context_result() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(sd_create_context_result());
+    return rcpp_result_gen;
 END_RCPP
 }
 // sd_generate_image
@@ -197,8 +266,44 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sd_generate_async
+bool sd_generate_async(SEXP ctx_sexp, Rcpp::List params);
+RcppExport SEXP _sd2R_sd_generate_async(SEXP ctx_sexpSEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_sexp(ctx_sexpSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(sd_generate_async(ctx_sexp, params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sd_generate_poll
+Rcpp::List sd_generate_poll();
+RcppExport SEXP _sd2R_sd_generate_poll() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(sd_generate_poll());
+    return rcpp_result_gen;
+END_RCPP
+}
+// sd_generate_result
+Rcpp::List sd_generate_result();
+RcppExport SEXP _sd2R_sd_generate_result() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(sd_generate_result());
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_sd2R_sd_set_progress_file", (DL_FUNC) &_sd2R_sd_set_progress_file, 1},
+    {"_sd2R_sd_clear_progress_file", (DL_FUNC) &_sd2R_sd_clear_progress_file, 0},
+    {"_sd2R_sd_set_log_file", (DL_FUNC) &_sd2R_sd_set_log_file, 1},
+    {"_sd2R_sd_clear_log_file", (DL_FUNC) &_sd2R_sd_clear_log_file, 0},
     {"_sd2R_sd_set_verbose", (DL_FUNC) &_sd2R_sd_set_verbose, 1},
     {"_sd2R_sd_profile_start", (DL_FUNC) &_sd2R_sd_profile_start, 0},
     {"_sd2R_sd_profile_stop", (DL_FUNC) &_sd2R_sd_profile_stop, 0},
@@ -206,6 +311,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sd2R_sd_init_log", (DL_FUNC) &_sd2R_sd_init_log, 0},
     {"_sd2R_sd_create_context", (DL_FUNC) &_sd2R_sd_create_context, 1},
     {"_sd2R_sd_destroy_context", (DL_FUNC) &_sd2R_sd_destroy_context, 1},
+    {"_sd2R_sd_create_context_async", (DL_FUNC) &_sd2R_sd_create_context_async, 1},
+    {"_sd2R_sd_create_context_poll", (DL_FUNC) &_sd2R_sd_create_context_poll, 0},
+    {"_sd2R_sd_create_context_result", (DL_FUNC) &_sd2R_sd_create_context_result, 0},
     {"_sd2R_sd_generate_image", (DL_FUNC) &_sd2R_sd_generate_image, 2},
     {"_sd2R_sd_system_info_cpp", (DL_FUNC) &_sd2R_sd_system_info_cpp, 0},
     {"_sd2R_sd_version_cpp", (DL_FUNC) &_sd2R_sd_version_cpp, 0},
@@ -216,6 +324,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_sd2R_sd_create_upscaler", (DL_FUNC) &_sd2R_sd_create_upscaler, 5},
     {"_sd2R_sd_upscale", (DL_FUNC) &_sd2R_sd_upscale, 3},
     {"_sd2R_sd_convert_model", (DL_FUNC) &_sd2R_sd_convert_model, 6},
+    {"_sd2R_sd_generate_async", (DL_FUNC) &_sd2R_sd_generate_async, 2},
+    {"_sd2R_sd_generate_poll", (DL_FUNC) &_sd2R_sd_generate_poll, 0},
+    {"_sd2R_sd_generate_result", (DL_FUNC) &_sd2R_sd_generate_result, 0},
     {NULL, NULL, 0}
 };
 

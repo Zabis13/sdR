@@ -3,6 +3,10 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <cstdio>
+#include <thread>
+#include <atomic>
+#include <mutex>
 #include "sd/stable-diffusion.h"
 
 // --- Verbose flag: controls log and progress output ---
@@ -105,9 +109,15 @@ static void profile_parse_log(const std::string& msg) {
     }
 }
 
-// --- Log callback: route SD log messages to R ---
+// --- Async flag: when true, callbacks must NOT call R API ---
+static std::atomic<bool> r_sd_async_running{false};
+
+// --- Log file for async status updates (loading stages etc.) ---
+static std::string r_sd_log_file;
+
+// --- Log callback: route SD log messages to R or file ---
 static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data) {
-    // Remove trailing newline for Rprintf
+    // Remove trailing newline
     std::string msg(text);
     while (!msg.empty() && msg.back() == '\n') msg.pop_back();
     if (msg.empty()) return;
@@ -115,6 +125,18 @@ static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data
     // Always parse for profiling (even when not verbose)
     if (level == SD_LOG_INFO) {
         profile_parse_log(msg);
+    }
+
+    // When async: write to log file instead of R console
+    if (r_sd_async_running.load()) {
+        if (!r_sd_log_file.empty() && level != SD_LOG_DEBUG) {
+            FILE* fp = std::fopen(r_sd_log_file.c_str(), "w");
+            if (fp) {
+                std::fprintf(fp, "%s\n", msg.c_str());
+                std::fclose(fp);
+            }
+        }
+        return;
     }
 
     switch (level) {
@@ -134,13 +156,60 @@ static void r_sd_log_callback(sd_log_level_t level, const char* text, void* data
     }
 }
 
-// --- Progress callback: update R console ---
+// --- Progress file for async Shiny updates ---
+static std::string r_sd_progress_file;
+
+// --- Progress callback: update R console + write file ---
 static void r_sd_progress_callback(int step, int steps, float time, void* data) {
-    if (!r_sd_verbose) return;
-    Rprintf("\rStep %d/%d (%.1fs)", step, steps, time);
-    if (step == steps) Rprintf("\n");
-    R_FlushConsole();
+    // Write progress file (always, if path is set) — safe from any thread
+    if (!r_sd_progress_file.empty()) {
+        float avg = (step > 0) ? time / step : 0.0f;
+        float eta = (steps - step) * avg;
+        int pct = (steps > 0) ? (int)(100.0f * step / steps) : 0;
+        FILE* fp = std::fopen(r_sd_progress_file.c_str(), "w");
+        if (fp) {
+            std::fprintf(fp,
+                "{\"step\":%d,\"steps\":%d,\"pct\":%d,\"elapsed\":%.1f,\"eta_sec\":%.1f}\n",
+                step, steps, pct, time, eta);
+            std::fclose(fp);
+        }
+    }
+    // No R API calls from worker thread
+    if (r_sd_async_running.load()) return;
+
+    // Console output (main thread only)
+    if (r_sd_verbose) {
+        Rprintf("\rStep %d/%d (%.1fs)", step, steps, time);
+        if (step == steps) Rprintf("\n");
+        R_FlushConsole();
+    }
     R_CheckUserInterrupt();
+}
+
+// [[Rcpp::export]]
+void sd_set_progress_file(std::string path) {
+    r_sd_progress_file = path;
+}
+
+// [[Rcpp::export]]
+void sd_clear_progress_file() {
+    if (!r_sd_progress_file.empty()) {
+        std::remove(r_sd_progress_file.c_str());
+        r_sd_progress_file.clear();
+    }
+}
+
+// [[Rcpp::export]]
+void sd_set_log_file(std::string path) {
+    r_sd_log_file = path;
+}
+
+// [[Rcpp::export]]
+void sd_clear_log_file() {
+    if (!r_sd_log_file.empty()) {
+        std::remove(r_sd_log_file.c_str());
+        r_sd_log_file.clear();
+    }
 }
 
 // [[Rcpp::export]]
@@ -289,6 +358,157 @@ void sd_destroy_context(SEXP ctx_sexp) {
         free_sd_ctx(xptr.get());
         xptr.release();
     }
+}
+
+// ============================================================
+// --- Async context creation (std::thread, polled from R) ---
+// ============================================================
+
+struct AsyncCtxState {
+    std::thread worker;
+    sd_ctx_params_t params;
+
+    // Owned string storage (must outlive params)
+    std::string model_path, clip_l, clip_g, clip_vision, t5xxl;
+    std::string llm, llm_vision, diffusion_model, high_noise_diffusion_model;
+    std::string vae, taesd, control_net, photo_maker, tensor_type_rules;
+
+    std::atomic<bool> running{false};
+    std::atomic<bool> done{false};
+    sd_ctx_t* result = nullptr;
+    std::string error_msg;
+};
+
+static AsyncCtxState g_async_ctx;
+
+static void async_ctx_worker() {
+    r_sd_async_running.store(true);
+    try {
+        g_async_ctx.result = new_sd_ctx(&g_async_ctx.params);
+        if (!g_async_ctx.result) {
+            g_async_ctx.error_msg = "Failed to create stable diffusion context";
+        }
+    } catch (const std::exception& e) {
+        g_async_ctx.result = nullptr;
+        g_async_ctx.error_msg = std::string("Exception: ") + e.what();
+    } catch (...) {
+        g_async_ctx.result = nullptr;
+        g_async_ctx.error_msg = "Unknown exception during context creation";
+    }
+    r_sd_async_running.store(false);
+    g_async_ctx.done.store(true);
+    g_async_ctx.running.store(false);
+}
+
+// Helper: copy string param from R list into owned storage, set C pointer
+static void async_ctx_set_str(Rcpp::List& params, const char* name,
+                               std::string& storage, const char*& target) {
+    if (params.containsElementNamed(name) && !Rf_isNull(params[name])) {
+        storage = Rcpp::as<std::string>(params[name]);
+        target = storage.c_str();
+    }
+}
+
+// [[Rcpp::export]]
+bool sd_create_context_async(Rcpp::List params) {
+    if (g_async_ctx.running.load()) {
+        Rcpp::stop("Context creation already in progress");
+    }
+
+    // Reset
+    g_async_ctx.done.store(false);
+    g_async_ctx.running.store(true);
+    g_async_ctx.result = nullptr;
+    g_async_ctx.error_msg.clear();
+
+    sd_ctx_params_t& p = g_async_ctx.params;
+    sd_ctx_params_init(&p);
+
+    // String params — copy into owned storage
+    async_ctx_set_str(params, "model_path", g_async_ctx.model_path, p.model_path);
+    async_ctx_set_str(params, "clip_l_path", g_async_ctx.clip_l, p.clip_l_path);
+    async_ctx_set_str(params, "clip_g_path", g_async_ctx.clip_g, p.clip_g_path);
+    async_ctx_set_str(params, "clip_vision_path", g_async_ctx.clip_vision, p.clip_vision_path);
+    async_ctx_set_str(params, "t5xxl_path", g_async_ctx.t5xxl, p.t5xxl_path);
+    async_ctx_set_str(params, "llm_path", g_async_ctx.llm, p.llm_path);
+    async_ctx_set_str(params, "llm_vision_path", g_async_ctx.llm_vision, p.llm_vision_path);
+    async_ctx_set_str(params, "diffusion_model_path", g_async_ctx.diffusion_model, p.diffusion_model_path);
+    async_ctx_set_str(params, "high_noise_diffusion_model_path", g_async_ctx.high_noise_diffusion_model, p.high_noise_diffusion_model_path);
+    async_ctx_set_str(params, "vae_path", g_async_ctx.vae, p.vae_path);
+    async_ctx_set_str(params, "taesd_path", g_async_ctx.taesd, p.taesd_path);
+    async_ctx_set_str(params, "control_net_path", g_async_ctx.control_net, p.control_net_path);
+    async_ctx_set_str(params, "photo_maker_path", g_async_ctx.photo_maker, p.photo_maker_path);
+    async_ctx_set_str(params, "tensor_type_rules", g_async_ctx.tensor_type_rules, p.tensor_type_rules);
+
+    // Numeric/bool params
+    if (params.containsElementNamed("n_threads"))
+        p.n_threads = Rcpp::as<int>(params["n_threads"]);
+    if (params.containsElementNamed("vae_decode_only"))
+        p.vae_decode_only = Rcpp::as<bool>(params["vae_decode_only"]);
+    if (params.containsElementNamed("free_params_immediately"))
+        p.free_params_immediately = Rcpp::as<bool>(params["free_params_immediately"]);
+    if (params.containsElementNamed("wtype"))
+        p.wtype = static_cast<sd_type_t>(Rcpp::as<int>(params["wtype"]));
+    if (params.containsElementNamed("rng_type"))
+        p.rng_type = static_cast<rng_type_t>(Rcpp::as<int>(params["rng_type"]));
+    if (params.containsElementNamed("prediction"))
+        p.prediction = static_cast<prediction_t>(Rcpp::as<int>(params["prediction"]));
+    if (params.containsElementNamed("lora_apply_mode"))
+        p.lora_apply_mode = static_cast<lora_apply_mode_t>(Rcpp::as<int>(params["lora_apply_mode"]));
+    if (params.containsElementNamed("offload_params_to_cpu"))
+        p.offload_params_to_cpu = Rcpp::as<bool>(params["offload_params_to_cpu"]);
+    if (params.containsElementNamed("enable_mmap"))
+        p.enable_mmap = Rcpp::as<bool>(params["enable_mmap"]);
+    if (params.containsElementNamed("keep_clip_on_cpu"))
+        p.keep_clip_on_cpu = Rcpp::as<bool>(params["keep_clip_on_cpu"]);
+    if (params.containsElementNamed("keep_control_net_on_cpu"))
+        p.keep_control_net_on_cpu = Rcpp::as<bool>(params["keep_control_net_on_cpu"]);
+    if (params.containsElementNamed("keep_vae_on_cpu"))
+        p.keep_vae_on_cpu = Rcpp::as<bool>(params["keep_vae_on_cpu"]);
+    if (params.containsElementNamed("diffusion_flash_attn"))
+        p.diffusion_flash_attn = Rcpp::as<bool>(params["diffusion_flash_attn"]);
+    if (params.containsElementNamed("flow_shift"))
+        p.flow_shift = Rcpp::as<float>(params["flow_shift"]);
+    if (params.containsElementNamed("diffusion_gpu_device"))
+        p.diffusion_gpu_device = Rcpp::as<int>(params["diffusion_gpu_device"]);
+    if (params.containsElementNamed("clip_gpu_device"))
+        p.clip_gpu_device = Rcpp::as<int>(params["clip_gpu_device"]);
+    if (params.containsElementNamed("vae_gpu_device"))
+        p.vae_gpu_device = Rcpp::as<int>(params["vae_gpu_device"]);
+
+    // Launch
+    if (g_async_ctx.worker.joinable()) g_async_ctx.worker.join();
+    g_async_ctx.worker = std::thread(async_ctx_worker);
+    return true;
+}
+
+// [[Rcpp::export]]
+Rcpp::List sd_create_context_poll() {
+    return Rcpp::List::create(
+        Rcpp::Named("running") = g_async_ctx.running.load(),
+        Rcpp::Named("done") = g_async_ctx.done.load()
+    );
+}
+
+// [[Rcpp::export]]
+SEXP sd_create_context_result() {
+    if (!g_async_ctx.done.load()) {
+        Rcpp::stop("Context creation not finished yet");
+    }
+    if (g_async_ctx.worker.joinable()) g_async_ctx.worker.join();
+
+    if (!g_async_ctx.error_msg.empty()) {
+        std::string err = g_async_ctx.error_msg;
+        g_async_ctx.error_msg.clear();
+        Rcpp::stop(err);
+    }
+
+    sd_ctx_t* ctx = g_async_ctx.result;
+    g_async_ctx.result = nullptr;
+
+    SdCtxXPtr xptr(ctx, true);
+    xptr.attr("class") = "sd_ctx";
+    return xptr;
 }
 
 // Helper: convert sd_image_t to R raw matrix (RGBA -> raw vector + dims)
@@ -517,4 +737,229 @@ bool sd_convert_model(std::string input_path, std::string output_path,
         tensor_type_rules.empty() ? nullptr : tensor_type_rules.c_str(),
         convert_name
     );
+}
+
+// ============================================================
+// --- Async generation (std::thread, polled from R/Shiny) ---
+// ============================================================
+
+// State shared between worker thread and R polling
+struct AsyncGenState {
+    std::mutex mtx;
+    std::thread worker;
+
+    // inputs (owned copies — safe to use from thread)
+    sd_ctx_t* ctx = nullptr;           // borrowed pointer, lives in R XPtr
+    SEXP ctx_sexp_protected = R_NilValue;  // prevent GC of XPtr during async
+    sd_img_gen_params_t params;
+    std::string prompt_str;
+    std::string neg_prompt_str;
+    std::vector<uint8_t> init_image_data;
+    std::vector<uint8_t> control_image_data;
+    int batch_count = 1;
+
+    // outputs
+    std::atomic<bool> running{false};
+    std::atomic<bool> done{false};
+    sd_image_t* results = nullptr;     // owned by thread, consumed by R
+    std::string error_msg;
+};
+
+static AsyncGenState g_async;
+
+// Worker function — runs in std::thread
+static void async_worker() {
+    r_sd_async_running.store(true);
+    try {
+        g_async.results = generate_image(g_async.ctx, &g_async.params);
+        if (!g_async.results) {
+            g_async.error_msg = "Image generation failed";
+        }
+    } catch (const std::exception& e) {
+        g_async.results = nullptr;
+        g_async.error_msg = std::string("Exception: ") + e.what();
+    } catch (...) {
+        g_async.results = nullptr;
+        g_async.error_msg = "Unknown exception during generation";
+    }
+    r_sd_async_running.store(false);
+    g_async.done.store(true);
+    g_async.running.store(false);
+}
+
+// [[Rcpp::export]]
+bool sd_generate_async(SEXP ctx_sexp, Rcpp::List params) {
+    if (g_async.running.load()) {
+        Rcpp::stop("Generation already in progress");
+    }
+
+    SdCtxXPtr xptr(ctx_sexp);
+    if (!xptr.get()) {
+        Rcpp::stop("Invalid sd_ctx (NULL pointer)");
+    }
+
+    // Join previous thread if still joinable
+    if (g_async.worker.joinable()) g_async.worker.join();
+
+    // Reset state completely
+    g_async.done.store(false);
+    g_async.running.store(false);
+    g_async.error_msg.clear();
+    g_async.init_image_data.clear();
+    g_async.control_image_data.clear();
+    g_async.prompt_str.clear();
+    g_async.neg_prompt_str.clear();
+    if (g_async.results) {
+        // Clean up unretrieved results from previous run
+        for (int i = 0; i < g_async.batch_count; i++) {
+            free(g_async.results[i].data);
+        }
+        free(g_async.results);
+        g_async.results = nullptr;
+    }
+    g_async.batch_count = 1;
+    g_async.running.store(true);
+    g_async.ctx = xptr.get();
+
+    // Copy params (same logic as sd_generate_image)
+    sd_img_gen_params_t& p = g_async.params;
+    sd_img_gen_params_init(&p);
+
+    if (params.containsElementNamed("prompt")) {
+        g_async.prompt_str = Rcpp::as<std::string>(params["prompt"]);
+        p.prompt = g_async.prompt_str.c_str();
+    }
+    if (params.containsElementNamed("negative_prompt")) {
+        g_async.neg_prompt_str = Rcpp::as<std::string>(params["negative_prompt"]);
+        p.negative_prompt = g_async.neg_prompt_str.c_str();
+    }
+
+    if (params.containsElementNamed("width"))
+        p.width = Rcpp::as<int>(params["width"]);
+    if (params.containsElementNamed("height"))
+        p.height = Rcpp::as<int>(params["height"]);
+    if (params.containsElementNamed("clip_skip"))
+        p.clip_skip = Rcpp::as<int>(params["clip_skip"]);
+    if (params.containsElementNamed("strength"))
+        p.strength = Rcpp::as<float>(params["strength"]);
+    if (params.containsElementNamed("seed"))
+        p.seed = Rcpp::as<int64_t>(params["seed"]);
+    if (params.containsElementNamed("batch_count"))
+        p.batch_count = Rcpp::as<int>(params["batch_count"]);
+    if (params.containsElementNamed("control_strength"))
+        p.control_strength = Rcpp::as<float>(params["control_strength"]);
+
+    if (params.containsElementNamed("sample_method"))
+        p.sample_params.sample_method = static_cast<sample_method_t>(Rcpp::as<int>(params["sample_method"]));
+    if (params.containsElementNamed("sample_steps"))
+        p.sample_params.sample_steps = Rcpp::as<int>(params["sample_steps"]);
+    if (params.containsElementNamed("scheduler"))
+        p.sample_params.scheduler = static_cast<scheduler_t>(Rcpp::as<int>(params["scheduler"]));
+    if (params.containsElementNamed("cfg_scale"))
+        p.sample_params.guidance.txt_cfg = Rcpp::as<float>(params["cfg_scale"]);
+    if (params.containsElementNamed("eta"))
+        p.sample_params.eta = Rcpp::as<float>(params["eta"]);
+
+    // VAE tiling
+    if (params.containsElementNamed("vae_tiling") && Rcpp::as<bool>(params["vae_tiling"])) {
+        p.vae_tiling_params.enabled = true;
+        if (params.containsElementNamed("vae_tile_size")) {
+            int ts = Rcpp::as<int>(params["vae_tile_size"]);
+            p.vae_tiling_params.tile_size_x = ts;
+            p.vae_tiling_params.tile_size_y = ts;
+        }
+        if (params.containsElementNamed("vae_tile_overlap"))
+            p.vae_tiling_params.target_overlap = Rcpp::as<float>(params["vae_tile_overlap"]);
+    }
+
+    // Tiled sampling
+    if (params.containsElementNamed("tiled_sampling") && Rcpp::as<bool>(params["tiled_sampling"])) {
+        p.tiled_sample_params.enabled = true;
+        if (params.containsElementNamed("sample_tile_size"))
+            p.tiled_sample_params.tile_size = Rcpp::as<int>(params["sample_tile_size"]);
+        if (params.containsElementNamed("sample_tile_overlap"))
+            p.tiled_sample_params.tile_overlap = Rcpp::as<float>(params["sample_tile_overlap"]);
+    }
+
+    // Step caching
+    if (params.containsElementNamed("cache_mode")) {
+        p.cache.mode = static_cast<sd_cache_mode_t>(Rcpp::as<int>(params["cache_mode"]));
+        if (params.containsElementNamed("cache_threshold"))
+            p.cache.reuse_threshold = Rcpp::as<float>(params["cache_threshold"]);
+        if (params.containsElementNamed("cache_start"))
+            p.cache.start_percent = Rcpp::as<float>(params["cache_start"]);
+        if (params.containsElementNamed("cache_end"))
+            p.cache.end_percent = Rcpp::as<float>(params["cache_end"]);
+    }
+
+    // Init image — deep copy pixel data
+    if (params.containsElementNamed("init_image") && !Rf_isNull(params["init_image"])) {
+        Rcpp::List img_list = Rcpp::as<Rcpp::List>(params["init_image"]);
+        p.init_image.width = Rcpp::as<uint32_t>(img_list["width"]);
+        p.init_image.height = Rcpp::as<uint32_t>(img_list["height"]);
+        p.init_image.channel = Rcpp::as<uint32_t>(img_list["channel"]);
+        Rcpp::RawVector data = Rcpp::as<Rcpp::RawVector>(img_list["data"]);
+        g_async.init_image_data.assign(data.begin(), data.end());
+        p.init_image.data = g_async.init_image_data.data();
+    }
+
+    // Control image — deep copy
+    if (params.containsElementNamed("control_image") && !Rf_isNull(params["control_image"])) {
+        Rcpp::List img_list = Rcpp::as<Rcpp::List>(params["control_image"]);
+        p.control_image.width = Rcpp::as<uint32_t>(img_list["width"]);
+        p.control_image.height = Rcpp::as<uint32_t>(img_list["height"]);
+        p.control_image.channel = Rcpp::as<uint32_t>(img_list["channel"]);
+        Rcpp::RawVector data = Rcpp::as<Rcpp::RawVector>(img_list["data"]);
+        g_async.control_image_data.assign(data.begin(), data.end());
+        p.control_image.data = g_async.control_image_data.data();
+    }
+
+    g_async.batch_count = (p.batch_count > 0) ? p.batch_count : 1;
+
+    // Profiling
+    if (r_sd_profiling) {
+        double ts = profile_now_ms();
+        r_profile_events.push_back({"generate_total", "start", ts});
+        r_profile_events.push_back({"text_encode", "start", ts});
+    }
+
+    // Launch worker thread (join already done above)
+    g_async.worker = std::thread(async_worker);
+
+    return true;
+}
+
+// [[Rcpp::export]]
+Rcpp::List sd_generate_poll() {
+    bool done = g_async.done.load();
+    bool running = g_async.running.load();
+    return Rcpp::List::create(
+        Rcpp::Named("running") = running,
+        Rcpp::Named("done") = done
+    );
+}
+
+// [[Rcpp::export]]
+Rcpp::List sd_generate_result() {
+    if (!g_async.done.load()) {
+        Rcpp::stop("Generation not finished yet");
+    }
+    if (g_async.worker.joinable()) g_async.worker.join();
+
+    if (!g_async.error_msg.empty()) {
+        std::string err = g_async.error_msg;
+        g_async.error_msg.clear();
+        Rcpp::stop(err);
+    }
+
+    int batch = g_async.batch_count;
+    Rcpp::List output(batch);
+    for (int i = 0; i < batch; i++) {
+        output[i] = sd_image_to_r(g_async.results[i]);
+        free(g_async.results[i].data);
+    }
+    free(g_async.results);
+    g_async.results = nullptr;
+
+    return output;
 }

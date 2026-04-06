@@ -1,12 +1,41 @@
+# sd2R 0.1.9
+
+## Shiny GUI
+* New `sd_app()` launches an interactive Shiny application for image generation.
+  - Auto-detection of model architecture (Flux, SD3, SDXL, SD1/2) from filenames
+    in the models folder — no manual configuration needed.
+  - Non-blocking async generation via C++ `std::thread`: the UI remains responsive
+    during image generation, with a live progress bar and ETA display.
+  - Automatic role assignment for multi-file models (diffusion, VAE, CLIP-L, T5-XXL).
+  - Prevents loading incompatible model combinations (e.g. SD1.5 + Flux).
+
+## Async C++ Generation API
+* New internal functions for non-blocking generation from R:
+  - `sd_generate_async()` — launches generation in a background C++ thread.
+  - `sd_generate_poll()` — checks completion status (atomic flags).
+  - `sd_generate_result()` — retrieves results after completion.
+* Progress callback writes JSON to a temp file (`step`, `steps`, `pct`,
+  `elapsed`, `eta_sec`), read by Shiny via `later::later()` polling.
+* R API calls (`Rprintf`, `R_CheckUserInterrupt`) are suppressed in the
+  worker thread to prevent stack corruption.
+
+## Build System
+* `tools/patch_sd_sources.sh` rewritten: all `sed` calls replaced with
+  `perl -pi -e` for cross-platform compatibility (macOS BSD sed + Linux GNU sed).
+
+---
+
 # sd2R 0.1.8
 
 ## Bug Fixes
 * Fixed `undefined symbol: ggml_backend_vk_get_device_count` load error on
-  systems where ggmlR was built without Vulkan support (e.g. CRAN servers).
-  The `configure` script now verifies that the Vulkan backend symbol is
-  actually present in `libggml.a` before enabling `-DSD_USE_VULKAN`. Previously,
-  `ggml_vulkan_status()` could report "AVAILABLE" while the symbol was absent
-  from the static library, causing `dyn.load()` to fail at package load time.
+  CRAN Fedora (clang and gcc). Root cause: ggmlR's shared library (`ggmlR.so`)
+  was built with Vulkan, but the static library (`libggml.a`) shipped without
+  Vulkan objects. The old `configure` relied on `ggml_vulkan_status()` which
+  queries `ggmlR.so` — it reported "AVAILABLE", causing sd2R to compile with
+  `-DSD_USE_VULKAN` against a `libggml.a` that lacked the symbols.
+  Now `configure` checks `nm libggml.a` for a defined (`T`) symbol directly,
+  ignoring the runtime ggmlR check entirely.
 
 ---
 

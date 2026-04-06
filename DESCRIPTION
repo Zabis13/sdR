@@ -1,7 +1,7 @@
 Package: sd2R
 Type: Package
 Title: Stable Diffusion Image Generation
-Version: 0.1.8
+Version: 0.1.9
 Authors@R: c(
     person("Yuri", "Baramykov",
         email = "lbsbmsu@mail.ru",
@@ -75,8 +75,11 @@ Description: Provides Stable Diffusion image generation in R using the 'ggmlR'
     in sd_ctx(): distribute diffusion, text encoders, and 'VAE' across
     separate 'Vulkan' devices. Built-in profiling (sd_profile_start(),
     sd_profile_summary()) for per-stage timing of text encoding, sampling,
-    and 'VAE' decode. Supports CPU and 'Vulkan' GPU. No 'Python' or external
-    API dependencies required. Cross-platform: Linux, macOS, Windows.
+    and 'VAE' decode. Interactive Shiny GUI via sd_app() with non-blocking
+    async generation (C++ std::thread), live progress bar, auto-detection
+    of model architecture, and ETA display. Supports CPU and 'Vulkan' GPU.
+    No 'Python' or external API dependencies required.
+    Cross-platform: Linux, macOS, Windows.
 SystemRequirements: GNU make, curl or wget (for downloading vocabulary files during installation)
 License: MIT + file LICENSE
 URL: https://github.com/Zabis13/sd2R
@@ -93,8 +96,9 @@ Suggests:
     testthat (>= 3.0.0),
     callr,
     png,
-    plumber,
+    shiny,
     base64enc,
+    plumber,
     jsonlite
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3

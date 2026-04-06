@@ -111,37 +111,42 @@ else
 fi
 
 # ---- Auto-detect Vulkan support ----
+#
+# Three conditions must ALL be true to enable Vulkan:
+#   1. ggmlR's libggml.a contains a *defined* ggml_backend_vk_get_device_count
+#      symbol (nm type T/t). This is the authoritative check — it proves the
+#      Vulkan backend was actually compiled into the static library.
+#      On CRAN Fedora, ggmlR's shared lib (ggmlR.so) may report Vulkan as
+#      available at runtime, but libggml.a can be built without Vulkan objects.
+#      Using nm on the .a is the only reliable way to detect this mismatch.
+#   2. libvulkan can be found for linking (pkg-config or known paths)
 
 VULKAN_CPPFLAGS=""
 VULKAN_LIBS=""
 
-GGMLR_HAS_VULKAN=$($RSCRIPT -e 'out <- capture.output(ggmlR::ggml_vulkan_status()); if (any(grepl("AVAILABLE", out))) cat("yes") else cat("no")' 2>/dev/null)
-
-# Double-check: verify that libggml.a actually contains Vulkan symbols.
-# ggml_vulkan_status() can return "AVAILABLE" even when libggml.a was built
-# without Vulkan (e.g. stub implementations). This causes undefined symbol
-# errors at load time on systems where ggmlR was built without Vulkan support.
-if [ "$GGMLR_HAS_VULKAN" = "yes" ] && [ -f "${GGMLR_LIB}/libggml.a" ]; then
-  if ! nm "${GGMLR_LIB}/libggml.a" 2>/dev/null | grep -q "ggml_backend_vk_get_device_count"; then
-    echo "* Vulkan: disabled (ggml_backend_vk_get_device_count not found in libggml.a)"
-    GGMLR_HAS_VULKAN="no"
+# Step 1: check that libggml.a has Vulkan backend compiled in
+VK_IN_LIBGGML="no"
+if [ -f "${GGMLR_LIB}/libggml.a" ]; then
+  if nm "${GGMLR_LIB}/libggml.a" 2>/dev/null | grep -q " [Tt] .*ggml_backend_vk_get_device_count"; then
+    VK_IN_LIBGGML="yes"
   fi
 fi
 
-if [ "$GGMLR_HAS_VULKAN" = "yes" ]; then
+# Step 2: find libvulkan and enable
+if [ "$VK_IN_LIBGGML" = "yes" ]; then
   if pkg-config --exists vulkan 2>/dev/null; then
     VULKAN_CPPFLAGS="-DSD_USE_VULKAN $(pkg-config --cflags vulkan)"
     VULKAN_LIBS="$(pkg-config --libs vulkan)"
-    echo "* Vulkan: enabled (detected via ggmlR and pkg-config)"
+    echo "* Vulkan: enabled (symbol found in libggml.a, libvulkan via pkg-config)"
   elif [ -f /usr/lib/libvulkan.so ] || [ -f /usr/lib/x86_64-linux-gnu/libvulkan.so ]; then
     VULKAN_CPPFLAGS="-DSD_USE_VULKAN"
     VULKAN_LIBS="-lvulkan"
-    echo "* Vulkan: enabled (detected via ggmlR, system libvulkan)"
+    echo "* Vulkan: enabled (symbol found in libggml.a, system libvulkan)"
   else
-    echo "* Vulkan: disabled (ggmlR has Vulkan but libvulkan not found for linking)"
+    echo "* Vulkan: disabled (Vulkan backend in libggml.a but libvulkan not found for linking)"
   fi
 else
-  echo "* Vulkan: disabled (ggmlR Vulkan not available)"
+  echo "* Vulkan: disabled (ggml_backend_vk_get_device_count not defined in libggml.a)"
 fi
 
 # ---- Generate src/Makevars from src/Makevars.in ----
