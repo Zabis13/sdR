@@ -21,6 +21,9 @@
 #'   not reuse the context. Default is FALSE.
 #' @param keep_clip_on_cpu Keep CLIP model on CPU even when using GPU
 #' @param keep_vae_on_cpu Keep VAE on CPU even when using GPU
+#' @param vae_conv_direct Use direct Conv2d implementation in VAE (default FALSE).
+#'   Faster on GPU; skips im2col and uses direct convolution kernels.
+#' @param diffusion_conv_direct Use direct Conv2d in diffusion model (default FALSE).
 #' @param diffusion_flash_attn Enable flash attention for diffusion model
 #'   (default TRUE). Set to FALSE if you experience issues with specific
 #'   GPU drivers or backends.
@@ -57,6 +60,16 @@
 #' @param vae_gpu Vulkan GPU device index for VAE encoder/decoder.
 #'   Default \code{-1} (same device as diffusion).
 #'   Overrides \code{device_layout}.
+#' @param tensor_type_rules Optional per-component weight type override, as a
+#'   comma-separated string of \code{pattern=type} rules. Each pattern is a
+#'   regex matched against tensor names; the first match wins. Use this to
+#'   load specific model components at a different precision than \code{wtype}.
+#'   Examples:
+#'   \itemize{
+#'     \item \code{"first_stage_model=f16"} — load VAE at F16
+#'     \item \code{"first_stage_model=f16,model.diffusion_model=q8_0"} — VAE F16, UNet Q8_0
+#'   }
+#'   Type names match ggml type names (\code{"f16"}, \code{"f32"}, \code{"q8_0"}, etc.).
 #' @param verbose If \code{TRUE}, print model loading progress and sampling
 #'   steps. Default \code{FALSE}.
 #' @return An external pointer to the SD context (class "sd_ctx") with
@@ -79,10 +92,13 @@ sd_ctx <- function(model_path = NULL,
                    control_net_path = NULL,
                    n_threads = 0L,
                    wtype = SD_TYPE$COUNT,
+                   tensor_type_rules = NULL,
                    vae_decode_only = TRUE,
                    free_params_immediately = FALSE,
                    keep_clip_on_cpu = FALSE,
                    keep_vae_on_cpu = FALSE,
+                   vae_conv_direct = TRUE,
+                   diffusion_conv_direct = FALSE,
                    diffusion_flash_attn = TRUE,
                    rng_type = RNG_TYPE$CUDA,
                    prediction = NULL,
@@ -114,13 +130,15 @@ sd_ctx <- function(model_path = NULL,
     free_params_immediately = free_params_immediately,
     keep_clip_on_cpu = keep_clip_on_cpu,
     keep_vae_on_cpu = keep_vae_on_cpu,
+    vae_conv_direct = vae_conv_direct,
+    diffusion_conv_direct = diffusion_conv_direct,
     diffusion_flash_attn = diffusion_flash_attn,
     rng_type = as.integer(rng_type),
     lora_apply_mode = as.integer(lora_apply_mode),
     flow_shift = as.numeric(flow_shift)
   )
 
-  # Optional string params
+  # Optional string params (paths — normalized)
   str_params <- list(
     vae_path = vae_path,
     taesd_path = taesd_path,
@@ -134,6 +152,11 @@ sd_ctx <- function(model_path = NULL,
     if (!is.null(str_params[[nm]])) {
       params[[nm]] <- normalizePath(str_params[[nm]], mustWork = TRUE)
     }
+  }
+
+  # tensor_type_rules: passed as-is (not a path)
+  if (!is.null(tensor_type_rules)) {
+    params$tensor_type_rules <- tensor_type_rules
   }
 
   if (!is.null(prediction)) {
@@ -241,6 +264,18 @@ sd_generate <- function(ctx,
                         vae_tile_overlap = 0.25,
                         cache_mode = c("off", "easy", "ucache"),
                         cache_config = NULL) {
+  # Resolve string names to integer enum values
+  if (is.character(sample_method)) {
+    sm <- SAMPLE_METHOD[[sample_method]]
+    if (is.null(sm)) stop("Unknown sample_method: ", sample_method, call. = FALSE)
+    sample_method <- sm
+  }
+  if (is.character(scheduler)) {
+    sc <- SCHEDULER[[scheduler]]
+    if (is.null(sc)) stop("Unknown scheduler: ", scheduler, call. = FALSE)
+    scheduler <- sc
+  }
+
   # img2img: default to init_image dimensions when width/height not specified
   if (!is.null(init_image)) {
     if (missing(width))  width  <- init_image$width
@@ -491,6 +526,18 @@ sd_txt2img <- function(ctx,
                        vae_tiling = NULL,
                        cache_mode = c("off", "easy", "ucache"),
                        cache_config = NULL) {
+  # Resolve string names to integer enum values
+  if (is.character(sample_method)) {
+    sm <- SAMPLE_METHOD[[sample_method]]
+    if (is.null(sm)) stop("Unknown sample_method: ", sample_method, call. = FALSE)
+    sample_method <- sm
+  }
+  if (is.character(scheduler)) {
+    sc <- SCHEDULER[[scheduler]]
+    if (is.null(sc)) stop("Unknown scheduler: ", scheduler, call. = FALSE)
+    scheduler <- sc
+  }
+
   vae_tiling_resolved <- .resolve_vae_tiling(
     vae_mode = vae_mode,
     vae_tiling = vae_tiling,
@@ -573,6 +620,18 @@ sd_img2img <- function(ctx,
     stop("img2img requires VAE encoder. Recreate context with vae_decode_only = FALSE.",
          call. = FALSE)
   }
+  # Resolve string names to integer enum values
+  if (is.character(sample_method)) {
+    sm <- SAMPLE_METHOD[[sample_method]]
+    if (is.null(sm)) stop("Unknown sample_method: ", sample_method, call. = FALSE)
+    sample_method <- sm
+  }
+  if (is.character(scheduler)) {
+    sc <- SCHEDULER[[scheduler]]
+    if (is.null(sc)) stop("Unknown scheduler: ", scheduler, call. = FALSE)
+    scheduler <- sc
+  }
+
   if (is.null(width)) width <- init_image$width
   if (is.null(height)) height <- init_image$height
 

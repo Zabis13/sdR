@@ -330,6 +330,10 @@ SEXP sd_create_context(Rcpp::List params) {
         p.keep_control_net_on_cpu = Rcpp::as<bool>(params["keep_control_net_on_cpu"]);
     if (params.containsElementNamed("keep_vae_on_cpu"))
         p.keep_vae_on_cpu = Rcpp::as<bool>(params["keep_vae_on_cpu"]);
+    if (params.containsElementNamed("vae_conv_direct"))
+        p.vae_conv_direct = Rcpp::as<bool>(params["vae_conv_direct"]);
+    if (params.containsElementNamed("diffusion_conv_direct"))
+        p.diffusion_conv_direct = Rcpp::as<bool>(params["diffusion_conv_direct"]);
     if (params.containsElementNamed("diffusion_flash_attn"))
         p.diffusion_flash_attn = Rcpp::as<bool>(params["diffusion_flash_attn"]);
     if (params.containsElementNamed("flow_shift"))
@@ -465,6 +469,10 @@ bool sd_create_context_async(Rcpp::List params) {
         p.keep_control_net_on_cpu = Rcpp::as<bool>(params["keep_control_net_on_cpu"]);
     if (params.containsElementNamed("keep_vae_on_cpu"))
         p.keep_vae_on_cpu = Rcpp::as<bool>(params["keep_vae_on_cpu"]);
+    if (params.containsElementNamed("vae_conv_direct"))
+        p.vae_conv_direct = Rcpp::as<bool>(params["vae_conv_direct"]);
+    if (params.containsElementNamed("diffusion_conv_direct"))
+        p.diffusion_conv_direct = Rcpp::as<bool>(params["diffusion_conv_direct"]);
     if (params.containsElementNamed("diffusion_flash_attn"))
         p.diffusion_flash_attn = Rcpp::as<bool>(params["diffusion_flash_attn"]);
     if (params.containsElementNamed("flow_shift"))
@@ -750,7 +758,7 @@ struct AsyncGenState {
 
     // inputs (owned copies — safe to use from thread)
     sd_ctx_t* ctx = nullptr;           // borrowed pointer, lives in R XPtr
-    SEXP ctx_sexp_protected = R_NilValue;  // prevent GC of XPtr during async
+    SEXP ctx_sexp_protected = nullptr;  // prevent GC of XPtr during async
     sd_img_gen_params_t params;
     std::string prompt_str;
     std::string neg_prompt_str;
@@ -767,11 +775,73 @@ struct AsyncGenState {
 
 static AsyncGenState g_async;
 
+// Release GC protection on ctx XPtr (call from main R thread only)
+static void async_release_ctx() {
+    if (g_async.ctx_sexp_protected != nullptr) {
+        R_ReleaseObject(g_async.ctx_sexp_protected);
+        g_async.ctx_sexp_protected = nullptr;
+    }
+}
+
+// Ensure previous worker thread is fully finished before reuse
+static void async_join_worker() {
+    if (g_async.worker.joinable()) g_async.worker.join();
+}
+
+// SIGSEGV handler for worker thread — catch crash before R's handler
+#ifndef _WIN32
+#include <signal.h>
+#include <setjmp.h>
+static thread_local sigjmp_buf worker_jmpbuf;
+static thread_local bool worker_has_jmpbuf = false;
+
+static void worker_sigsegv_handler(int sig) {
+    if (worker_has_jmpbuf) {
+        worker_has_jmpbuf = false;
+        siglongjmp(worker_jmpbuf, sig);
+    }
+    // If no jmpbuf, let it crash normally
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+#endif
+
 // Worker function — runs in std::thread
 static void async_worker() {
     r_sd_async_running.store(true);
     try {
+        if (!sd_ctx_is_valid(g_async.ctx)) {
+            g_async.results = nullptr;
+            g_async.error_msg = "ctx is invalid (NULL or sd==NULL)";
+            r_sd_async_running.store(false);
+            g_async.done.store(true);
+            g_async.running.store(false);
+            return;
+        }
+
+#ifndef _WIN32
+        // Install thread-local SIGSEGV handler to catch crash before R does
+        struct sigaction sa_new, sa_old;
+        memset(&sa_new, 0, sizeof(sa_new));
+        sa_new.sa_handler = worker_sigsegv_handler;
+        sigemptyset(&sa_new.sa_mask);
+        sa_new.sa_flags = 0;
+        sigaction(SIGSEGV, &sa_new, &sa_old);
+
+        int sig = sigsetjmp(worker_jmpbuf, 1);
+        if (sig == 0) {
+            worker_has_jmpbuf = true;
+            g_async.results = generate_image(g_async.ctx, &g_async.params);
+            worker_has_jmpbuf = false;
+        } else {
+            g_async.results = nullptr;
+            g_async.error_msg = "SIGSEGV in generate_image";
+        }
+        // Restore R's signal handler
+        sigaction(SIGSEGV, &sa_old, nullptr);
+#else
         g_async.results = generate_image(g_async.ctx, &g_async.params);
+#endif
         if (!g_async.results) {
             g_async.error_msg = "Image generation failed";
         }
@@ -782,6 +852,8 @@ static void async_worker() {
         g_async.results = nullptr;
         g_async.error_msg = "Unknown exception during generation";
     }
+    // NOTE: r_sd_async_running cleared here, but GC protection released
+    // only from main R thread in sd_generate_result() or next sd_generate_async()
     r_sd_async_running.store(false);
     g_async.done.store(true);
     g_async.running.store(false);
@@ -793,13 +865,19 @@ bool sd_generate_async(SEXP ctx_sexp, Rcpp::List params) {
         Rcpp::stop("Generation already in progress");
     }
 
-    SdCtxXPtr xptr(ctx_sexp);
-    if (!xptr.get()) {
+    // Extract raw pointer without creating a temporary XPtr
+    // (XPtr constructor/destructor with PreserveStorage causes extra
+    // R_PreserveObject/R_ReleaseObject that interfere with our GC protection)
+    sd_ctx_t* ctx_raw = reinterpret_cast<sd_ctx_t*>(R_ExternalPtrAddr(ctx_sexp));
+    if (!ctx_raw) {
         Rcpp::stop("Invalid sd_ctx (NULL pointer)");
     }
 
-    // Join previous thread if still joinable
-    if (g_async.worker.joinable()) g_async.worker.join();
+    // Ensure previous worker thread is fully finished
+    async_join_worker();
+
+    // Release GC protection from previous run (if not already released)
+    async_release_ctx();
 
     // Reset state completely
     g_async.done.store(false);
@@ -819,7 +897,11 @@ bool sd_generate_async(SEXP ctx_sexp, Rcpp::List params) {
     }
     g_async.batch_count = 1;
     g_async.running.store(true);
-    g_async.ctx = xptr.get();
+    g_async.ctx = ctx_raw;
+
+    // Protect XPtr SEXP from GC during async generation
+    R_PreserveObject(ctx_sexp);
+    g_async.ctx_sexp_protected = ctx_sexp;
 
     // Copy params (same logic as sd_generate_image)
     sd_img_gen_params_t& p = g_async.params;
@@ -944,7 +1026,13 @@ Rcpp::List sd_generate_result() {
     if (!g_async.done.load()) {
         Rcpp::stop("Generation not finished yet");
     }
-    if (g_async.worker.joinable()) g_async.worker.join();
+    async_join_worker();
+
+    // NOTE: Do NOT release GC protection here — ctx must stay protected
+    // until the next sd_generate_async() call (which does its own release+reprotect).
+    // Releasing here allows GC to collect the XPtr between generations,
+    // causing segfault on the next call.
+    // async_release_ctx();  // REMOVED — was causing use-after-free
 
     if (!g_async.error_msg.empty()) {
         std::string err = g_async.error_msg;

@@ -294,19 +294,22 @@ ui <- fluidPage(
 server <- function(input, output, session) {
 
   rv <- reactiveValues(
-    ctx = NULL,
-    last_image = NULL,
     generating = FALSE,
     loading_model = FALSE,
     status_msg = "",
-    progress_trigger = NULL
+    progress_trigger = NULL,
+    image_trigger = NULL
   )
 
   # Non-reactive state for use in later() callbacks
+  # IMPORTANT: ctx stored here (not in rv) to avoid Shiny reactive wrapping
+  # of XPtr, which can cause GC issues with async C++ threads
   local_state <- new.env(parent = emptyenv())
   local_state$load_t0 <- 0
   local_state$model_type <- "sd1"
   local_state$gen_seed <- 42L
+  local_state$ctx <- NULL
+  local_state$last_image <- NULL
 
   # GPU info at startup
   output$gpu_info <- renderUI({
@@ -492,6 +495,7 @@ server <- function(input, output, session) {
     # Build params for C++ sd_create_context_async
     ctx_params <- list(
       vae_decode_only = TRUE,
+      free_params_immediately = FALSE,
       diffusion_flash_attn = TRUE,
       rng_type = as.integer(sd2R::RNG_TYPE$CUDA),
       wtype = as.integer(sd2R::SD_TYPE$COUNT),
@@ -551,7 +555,7 @@ server <- function(input, output, session) {
           ctx <- sd2R:::sd_create_context_result()
           attr(ctx, "model_type") <- local_state$model_type
           attr(ctx, "vae_decode_only") <- TRUE
-          rv$ctx <- ctx
+          local_state$ctx <- ctx
           rv$status_msg <- sprintf("Model loaded in %.1f sec.", elapsed)
         }, error = function(e) {
           rv$status_msg <- paste("Load error:", e$message)
@@ -567,7 +571,7 @@ server <- function(input, output, session) {
 
   # Generate (async via std::thread)
   observeEvent(input$generate, {
-    if (is.null(rv$ctx)) {
+    if (is.null(local_state$ctx)) {
       showNotification("Load a model first", type = "error")
       return()
     }
@@ -581,6 +585,7 @@ server <- function(input, output, session) {
     }
 
     dims <- as.integer(strsplit(input$resolution, "x")[[1]])
+
     rv$generating <- TRUE
     local_state$gen_dims <- dims
     local_state$gen_seed <- as.integer(input$seed)
@@ -605,8 +610,7 @@ server <- function(input, output, session) {
 
     # Launch async generation in C++ thread
     tryCatch({
-      sd2R:::sd_generate_async(rv$ctx, gen_params)
-      # Start polling
+      sd2R:::sd_generate_async(local_state$ctx, gen_params)
       poll_generation()
     }, error = function(e) {
       rv$generating <- FALSE
@@ -619,12 +623,13 @@ server <- function(input, output, session) {
   poll_generation <- function() {
     later::later(function() {
       status <- sd2R:::sd_generate_poll()
-      rv$progress_trigger <- Sys.time()  # force UI update
+      rv$progress_trigger <- Sys.time()
 
       if (status$done) {
         tryCatch({
           imgs <- sd2R:::sd_generate_result()
-          rv$last_image <- imgs[[1]]
+          local_state$last_image <- imgs[[1]]
+          rv$image_trigger <- Sys.time()
           p <- read_progress()
           elapsed <- if (!is.null(p)) round(p$elapsed, 1) else "?"
           rv$status_msg <- sprintf("Done. %dx%d, seed=%d, %.1fs",
@@ -643,7 +648,8 @@ server <- function(input, output, session) {
 
   # Display result
   output$result_image <- renderUI({
-    img <- rv$last_image
+    rv$image_trigger  # reactive dependency to re-render on new image
+    img <- local_state$last_image
     if (is.null(img)) {
       div(style = "color:#555; padding: 100px 0; font-size: 1.3em;",
           "Generated image will appear here")
@@ -662,8 +668,8 @@ server <- function(input, output, session) {
       paste0("sd2R_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".png")
     },
     content = function(file) {
-      if (!is.null(rv$last_image)) {
-        sd2R::sd_save_image(rv$last_image, file)
+      if (!is.null(local_state$last_image)) {
+        sd2R::sd_save_image(local_state$last_image, file)
       }
     }
   )

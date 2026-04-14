@@ -12,7 +12,7 @@ ctx <- sd_ctx(
   clip_l_path = file.path(models_dir, "clip_l.safetensors"),
   t5xxl_path = file.path(models_dir, "t5-v1_1-xxl-encoder-Q5_K_M.gguf"),
   n_threads = 4L, model_type = "flux",
-  vae_decode_only = FALSE, verbose = FALSE
+  vae_decode_only = FALSE, verbose = TRUE
 )
 
 

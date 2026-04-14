@@ -15,10 +15,13 @@ sd_ctx(
   control_net_path = NULL,
   n_threads = 0L,
   wtype = SD_TYPE$COUNT,
+  tensor_type_rules = NULL,
   vae_decode_only = TRUE,
   free_params_immediately = FALSE,
   keep_clip_on_cpu = FALSE,
   keep_vae_on_cpu = FALSE,
+  vae_conv_direct = FALSE,
+  diffusion_conv_direct = FALSE,
   diffusion_flash_attn = TRUE,
   rng_type = RNG_TYPE$CUDA,
   prediction = NULL,
@@ -54,6 +57,17 @@ sd_ctx(
 
 \item{wtype}{Weight type for quantization (see \code{SD_TYPE})}
 
+\item{tensor_type_rules}{Optional per-component weight type override, as a
+comma-separated string of \code{pattern=type} rules. Each pattern is a
+regex matched against tensor names; the first match wins. Use this to
+load specific model components at a different precision than \code{wtype}.
+Examples:
+\itemize{
+  \item \code{"first_stage_model=f16"} — load VAE at F16
+  \item \code{"first_stage_model=f16,model.diffusion_model=q8_0"} — VAE F16, UNet Q8_0
+}
+Type names match ggml type names (\code{"f16"}, \code{"f32"}, \code{"q8_0"}, etc.).}
+
 \item{vae_decode_only}{If TRUE, only load VAE decoder (saves memory)}
 
 \item{free_params_immediately}{Free model params after first computation.
@@ -64,6 +78,11 @@ not reuse the context. Default is FALSE.}
 \item{keep_clip_on_cpu}{Keep CLIP model on CPU even when using GPU}
 
 \item{keep_vae_on_cpu}{Keep VAE on CPU even when using GPU}
+
+\item{vae_conv_direct}{Use direct Conv2d implementation in VAE (default FALSE).
+Faster on GPU; skips im2col and uses direct convolution kernels.}
+
+\item{diffusion_conv_direct}{Use direct Conv2d in diffusion model (default FALSE).}
 
 \item{diffusion_flash_attn}{Enable flash attention for diffusion model
 (default TRUE). Set to FALSE if you experience issues with specific

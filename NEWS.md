@@ -1,3 +1,15 @@
+# sd2R 0.2.0
+
+## Performance: VAE Decode ×24 Faster
+
+* `vae_conv_direct` now defaults to `TRUE` — VAE decoder uses `GGML_OP_CONV_2D`
+  (direct convolution via `conv2d_mm.comp`) instead of the legacy IM2COL + MUL_MAT path.
+* On RX 9070 (RDNA4) with Vulkan coopmat (KHR): VAE decode 12.6s → 0.5s for 768×768.
+* All convolutions now run through the coopmat cm1 path (~16-17 TFLOPS/s) when
+  `coopmat_support` is available; scalar FMA fallback used otherwise.
+
+---
+
 # sd2R 0.1.9
 
 ## Shiny GUI

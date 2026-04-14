@@ -26,8 +26,12 @@ sd_register_model(id, model_type, paths, defaults = list(), overwrite = FALSE)
 Invisible model id
 }
 \description{
-Adds or updates a model entry in \code{~/.sd2R/models.json}. Paths and
-defaults are stored for later use by \code{\link{sd_load_model}}.
+Adds or updates a model entry in the sd2R model registry file. The
+registry lives in \code{tools::R_user_dir("sd2R", "config")} by default
+and can be overridden via the \code{SD2R_REGISTRY_DIR} environment
+variable. The directory is created only when a model is actually
+registered. Paths and defaults are stored for later use by
+\code{\link{sd_load_model}}.
 }
 \examples{
 \dontrun{

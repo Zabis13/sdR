@@ -13,6 +13,6 @@ sd_remove_model(id)
 No return value, called for side effects.
 }
 \description{
-Removes the model entry from \code{~/.sd2R/models.json} and unloads
+Removes the model entry from the sd2R model registry and unloads
 it from memory if loaded.
 }

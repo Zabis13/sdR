@@ -1,6 +1,7 @@
 # Model manager for sd2R
 #
-# Registry stored in ~/.sd2R/models.json
+# Registry stored in tools::R_user_dir("sd2R", "config")/models.json
+# (overridable via the SD2R_REGISTRY_DIR environment variable).
 # Context cache in memory (package-level environment)
 
 # ---------------------------------------------------------------------------
@@ -10,11 +11,25 @@
 .mm_env$contexts <- list()       # named list: id -> sd_ctx
 .mm_env$last_used <- list()      # named list: id -> timestamp (for LRU)
 
-.mm_registry_path <- function() {
+# Resolve the directory used to store the model registry.
+#
+# Per CRAN Policy, packages must not write to the user's home directory or
+# any other location outside tempdir() without explicit user consent. We
+# therefore default to the standard tools::R_user_dir("sd2R", "config")
+# location and allow overriding it via the SD2R_REGISTRY_DIR env-var (used
+# by the test suite to redirect writes into tempdir()).
+#
+# This function never creates the directory on its own; creation happens
+# only in .write_registry(), i.e. when the user explicitly registers a
+# model.
+.mm_registry_dir <- function() {
+  override <- Sys.getenv("SD2R_REGISTRY_DIR", unset = "")
+  if (nzchar(override)) return(override)
+  tools::R_user_dir("sd2R", which = "config")
+}
 
-  dir <- file.path(Sys.getenv("HOME"), ".sd2R")
-  if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
-  file.path(dir, "models.json")
+.mm_registry_path <- function() {
+  file.path(.mm_registry_dir(), "models.json")
 }
 
 # ---------------------------------------------------------------------------
@@ -34,7 +49,11 @@
 }
 
 .write_registry <- function(registry) {
-  path <- .mm_registry_path()
+  dir <- .mm_registry_dir()
+  if (!dir.exists(dir)) {
+    dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  }
+  path <- file.path(dir, "models.json")
   jsonlite::write_json(registry, path, pretty = TRUE, auto_unbox = TRUE)
   invisible(path)
 }
@@ -82,8 +101,12 @@
 
 #' Register a model in the sd2R model registry
 #'
-#' Adds or updates a model entry in \code{~/.sd2R/models.json}. Paths and
-#' defaults are stored for later use by \code{\link{sd_load_model}}.
+#' Adds or updates a model entry in the sd2R model registry file. The
+#' registry lives in \code{tools::R_user_dir("sd2R", "config")} by default
+#' and can be overridden via the \code{SD2R_REGISTRY_DIR} environment
+#' variable. The directory is created only when a model is actually
+#' registered. Paths and defaults are stored for later use by
+#' \code{\link{sd_load_model}}.
 #'
 #' @param id Unique model identifier (e.g. "flux-dev", "sd15-base")
 #' @param model_type Model architecture: "sd1", "sd2", "sdxl", "flux", "sd3"
@@ -161,7 +184,7 @@ sd_register_model <- function(id, model_type, paths, defaults = list(),
 
 #' List registered models
 #'
-#' Returns a data frame of all models in \code{~/.sd2R/models.json},
+#' Returns a data frame of all models recorded in the sd2R model registry,
 #' with a column indicating which are currently loaded in memory.
 #'
 #' @return Data frame with columns: id, model_type, loaded, diffusion_path
@@ -321,7 +344,7 @@ sd_unload_all <- function() {
 
 #' Remove a model from the registry
 #'
-#' Removes the model entry from \code{~/.sd2R/models.json} and unloads
+#' Removes the model entry from the sd2R model registry and unloads
 #' it from memory if loaded.
 #'
 #' @param id Model identifier

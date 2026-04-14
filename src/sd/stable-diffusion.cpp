@@ -3436,6 +3436,10 @@ void free_sd_ctx(sd_ctx_t* sd_ctx) {
     free(sd_ctx);
 }
 
+bool sd_ctx_is_valid(const sd_ctx_t* sd_ctx) {
+    return sd_ctx != nullptr && sd_ctx->sd != nullptr;
+}
+
 enum sample_method_t sd_get_default_sample_method(const sd_ctx_t* sd_ctx) {
     if (sd_ctx != nullptr && sd_ctx->sd != nullptr) {
         if (sd_version_is_dit(sd_ctx->sd->version)) {
@@ -3483,9 +3487,6 @@ sd_image_t* generate_image_internal(sd_ctx_t* sd_ctx,
                                     ggml_tensor* denoise_mask             = nullptr,
                                     const sd_cache_params_t* cache_params = nullptr) {
     if (seed < 0) {
-        // Generally, when using the provided command line, the seed is always >0.
-        // However, to prevent potential issues if 'stable-diffusion.cpp' is invoked as a library
-        // by a third party with a seed <0, let's incorporate randomization here.
 #ifdef GGML_R_PACKAGE
         seed = (int64_t)(time(nullptr)) % INT32_MAX;
 #else
@@ -3765,14 +3766,12 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx, const sd_img_gen_params_t* sd_img_g
     params.mem_size   = static_cast<size_t>(1024 * 1024) * 1024;  // 1G
     params.mem_buffer = nullptr;
     params.no_alloc   = false;
-    // LOG_DEBUG("mem_size %u ", params.mem_size);
 
     struct ggml_context* work_ctx = ggml_init(params);
     if (!work_ctx) {
         LOG_ERROR("ggml_init() failed");
         return nullptr;
     }
-
     int64_t seed = sd_img_gen_params->seed;
     if (seed < 0) {
 #ifdef GGML_R_PACKAGE

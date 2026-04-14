@@ -10,6 +10,6 @@ sd_list_models()
 Data frame with columns: id, model_type, loaded, diffusion_path
 }
 \description{
-Returns a data frame of all models in \code{~/.sd2R/models.json},
+Returns a data frame of all models recorded in the sd2R model registry,
 with a column indicating which are currently loaded in memory.
 }
